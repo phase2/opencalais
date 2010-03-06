@@ -1,0 +1,4 @@
+ - Add API documentation (talk about the various way to access the data)
+ - Add better Calais Node documentation
+ - Document the local RDF storage and ways to use it 
+ - Linked Data integration

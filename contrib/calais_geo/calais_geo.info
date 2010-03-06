@@ -1,0 +1,8 @@
+; $Id $
+name = Calais Geo
+description = "Provides Geo services & functionality based on the Calais Metadata ."
+package = "Calais"
+core = 6.x
+dependencies[] = calais
+dependencies[] = gmap
+
