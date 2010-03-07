@@ -1,14 +1,13 @@
 <?php
+// $Id$
 /*
-  Copyright (C) 2008 by Phase2 Technology.
+  Copyright (C) 2010 by Phase2 Technology.
   Author(s): Frank Febbraro, Irakli Nadareishvili
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License.
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY. See the LICENSE.txt file for more details.
-
-  $Id: calais_api.module,v 1.3.2.10.2.14.2.5 2009/12/14 21:50:25 febbraro Exp $
 */
 /**
  * @file
@@ -16,41 +15,48 @@
 
 
 /**
- * Implementation of hook_init().
+ * Implements hook_init().
  */
 function calais_api_init() {
-  // Only load these if it is not a cached page
-  module_load_include('inc', 'calais_api', 'includes/Calais');
-  module_load_include('inc', 'calais_api', 'includes/CalaisMetadata');
-  module_load_include('inc', 'calais_api', 'includes/CalaisRdfProcessor');
-  module_load_include('inc', 'calais_api', 'includes/SemanticProxy');
+  if (!class_exists('ARC2')) {
+	  @include_once libraries_get_path('arc') . '/ARC2.php';
+	}
 }
 
 /**
- * Implementation of hook_perm().
+ * Implements hook_permission().
  */
-function calais_api_perm() {
-  return array('administer calais api');
+function calais_api_permission() {
+  return array(
+    'administer calais api' => array(
+      'title' => t('Administer OpenCalais API'),
+      'description' => t('Configure API Key'),
+    ),
+  );
 }
 
 /**
- * Implementation of hook_menu().
+ * Implements hook_menu().
  */
 function calais_api_menu() {
   $items = array();
   
-  $items['admin/settings/calais'] = array(
-    'title' => 'Calais configuration',
-    'description' => 'Configurations for Calais',
+  $items['admin/config/calais'] = array(
+    'title' => 'Calais settings',
+    'description' => 'Configure options for OpenCalais integration',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('calais_api_admin_settings'),
     'access arguments' => array('administer calais api'),
+    'type' => MENU_NORMAL_ITEM,
   );
 
-  $items['admin/settings/calais/calais-api'] = array(
+  $items['admin/config/calais/calais-api'] = array(
     'title' => 'Calais API Settings',
-    'description' => 'Configurations for Calais API',
-    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'description' => 'Configure API Key & Settings for OpenCalais integration',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('calais_api_admin_settings'),
+    'access arguments' => array('administer calais api'),
+    'type' => MENU_NORMAL_ITEM,
   );
 
   return $items;
@@ -110,12 +116,12 @@ function is_calais_api_key_set($show_warning = TRUE) {
   if (empty($apikey)) {
     if ($show_warning) {
       drupal_set_message(t('Calais semantic analysis skipped because Calais API Key is not set. Please configure it at: !link', 
-                              array('!link' => l('admin/settings/calais','admin/settings/calais', 
+                              array('!link' => l('admin/config/calais/calais-api', 'admin/config/calais/calais-api', 
                                                 array('attributes' => array('target' => '_blank'))
                                                 )
-                                    )
+                              )
                           ),
-                        $type = 'warning', $repeat = FALSE);
+                          $type = 'warning', $repeat = FALSE);
     }
     return FALSE;
   }
@@ -175,7 +181,9 @@ function calais_api_make_readable($camel_case) {
 }
 
 /**
- * Declare the Calais namespace to the RDF API module (in case we use it)
+ * Implements hook_namespaces().
+ *
+ * Declare the Calais namespaces for RDF/RDFa support.
  */
 function calais_api_rdf_namespaces() {
   return array(
@@ -193,7 +201,7 @@ function calais_api_rdf_namespaces() {
 
 /**
  * Get a list of the entities that Calais API defines:
- * http://opencalais.mashery.com/page/calaissemanticmetadata
+ * http://www.opencalais.com/documentation/calais-web-service-api/api-metadata/entity-index-and-definitions
  *
  * TODO: When Calais updates to have a static list at a URL or via API call, return that instead.
  *
@@ -225,6 +233,7 @@ function calais_api_get_all_entities() {
     'Organization',
     'Person',
     'PhoneNumber',
+    'PoliticalEvent',
     'Position',
     'Product',
     'ProgrammingLanguage',
@@ -240,8 +249,9 @@ function calais_api_get_all_entities() {
     'TVShow',
     'TVStation',
     'URL',
-    'SocialTags', // Special reserved vocab for Calais Social Tags
-    'CalaisDocumentCategory', // Special reserved vocab for Calais Document Categorization
-    'EventsFacts', // Special reserved vocab for Events & Facts
+    // Special Reserved Vocabularies
+    'SocialTags', 
+    'CalaisDocumentCategory', 
+    'EventsFacts', 
   );
 }

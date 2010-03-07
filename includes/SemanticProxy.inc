@@ -70,7 +70,7 @@ class SemanticProxy {
       return array();
     }
     
-    if($this->parameters['format'] == 'rdf') {
+    if ($this->parameters['format'] == 'rdf') {
       $this->rdf = $ret->data;
       $this->processor = new CalaisRdfProcessor();
       $this->keywords = $this->processor->parse_rdf($this->rdf);    

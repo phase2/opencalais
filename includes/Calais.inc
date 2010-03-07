@@ -77,10 +77,14 @@ class Calais {
       'content' => $content,
       'paramsXML' => $this->build_xml_params(),
     );
-
     $data_enc = http_build_query($data, '', '&');
     $uri = $this->parameters['protocol'] . '://' . $this->parameters['host'] . self::PATH;
-    $ret = drupal_http_request($uri, $headers, 'POST', $data_enc);
+    $req = array(
+      'headers' => $headers,
+      'method' => 'POST',
+      'data' => $data_enc,
+    );
+    $ret = drupal_http_request($uri, $req);
     if (isset($ret->error)) {
       self::log_calais_error($ret);
       return array();
@@ -90,7 +94,9 @@ class Calais {
     $this->processor = new CalaisRdfProcessor();
     $this->keywords = $this->processor->parse_rdf($this->rdf);    
     $this->triples = $this->processor->triples;
-    $this->flatTriples = $this->processor->flatTriples;
+    if (isset($this->processor->flatTriples)) {  
+      $this->flatTriples = $this->processor->flatTriples;
+    }
     return $this->keywords;    
   }
 
@@ -106,25 +112,27 @@ class Calais {
    * @return XML document of Calais parameters.
    */
   protected function build_xml_params() {
-    $attributes = $this->parameters;
+    $attrs = (object)$this->parameters;
     $ret = <<<EOD
-    <c:params xmlns:c="http://s.opencalais.com/1/pred/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
-    <c:processingDirectives c:contentType="$attributes[contentType]" 
-                            c:outputFormat="$attributes[outputFormat]"
-                            c:enableMetadataType="$attributes[enableMetadataType]">
-                            c:calculateRelevanceScore="$attributes[calculateRelevanceScore]">
-    </c:processingDirectives>
-    <c:userDirectives c:allowDistribution="$attributes[allowDistribution]" 
-                      c:allowSearch="$attributes[allowSearch]"           
-                      c:externalID="$attributes[externalID]" 
-                      c:submitter="$attributes[submitter]">
-    </c:userDirectives>
-    <c:externalMetadata>
-      <rdf:description>
-        <c:caller>$attributes[caller]</c:caller>
-      </rdf:description>
-    </c:externalMetadata>
-    </c:params>
+<c:params xmlns:c="http://s.opencalais.com/1/pred/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <c:processingDirectives c:contentType="{$attrs->contentType}" 
+                          c:outputFormat="{$attrs->outputFormat}"
+                          c:enableMetadataType="{$attrs->enableMetadataType}"
+                          c:calculateRelevanceScore="{$attrs->calculateRelevanceScore}"
+  >
+  </c:processingDirectives>
+  <c:userDirectives c:allowDistribution="{$attrs->allowDistribution}" 
+                    c:allowSearch="{$attrs->allowSearch}"   
+                    c:externalID="{$attrs->externalID}"
+                    c:submitter="{$attrs->submitter}"
+  >
+  </c:userDirectives>
+  <c:externalMetadata>
+    <rdf:description>
+      <c:caller>{$attrs->caller}</c:caller>
+    </rdf:description>
+  </c:externalMetadata>
+</c:params>
 EOD;
     return $ret;
   }

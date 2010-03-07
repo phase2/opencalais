@@ -1,5 +1,14 @@
 <?php
-// $Id: calais_api.install,v 1.1.2.1 2008/08/20 18:52:38 febbraro Exp $
+// $Id$
+/*
+  Copyright (C) 2010 by Phase2 Technology.
+  Author(s): Frank Febbraro, Irakli Nadareishvili
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY. See the LICENSE.txt file for more details.
+*/
 /**
  * @file
  */
@@ -34,9 +43,9 @@ function calais_api_requirements($phase) {
 
     $arc2 = class_exists('ARC2');
     $requirements['calais-rdf'] = array(
-      'title' => $t('Calais RDF Parser'),
+      'title' => $t('RDF Parser'),
       'value' => $arc2 ? $t('ARC2 @version is installed', array('@version' => ARC2::getVersion())) : $t('ARC2 Not installed'),
-      'description' => $arc2 ? '' : $t('<a href="@arc2">ARC2</a> is not available. Please <a href="@download">download</a> the latest version of the library and install it in the RDF module. For more information please refer to the <a href="@handbook">handbook</a>.', array('@arc2' => 'http://arc.semsol.org/', '@download' => 'http://arc.semsol.org/download', '@handbook' => 'http://drupal.org/node/219852')),
+      'description' => $arc2 ? '' : $t('<a href="@arc2">ARC2</a> is not available. Please <a href="@download">download</a> the latest version of the library and install it in sites/all/libraries/arc.', array('@arc2' => 'http://arc.semsol.org/', '@download' => 'http://arc.semsol.org/download')),
       'severity' => $arc2 ? REQUIREMENT_OK : REQUIREMENT_ERROR,
     );
   }

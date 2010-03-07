@@ -1,6 +1,15 @@
 ; $Id $
 name = Calais API
-description = "Calais Web Service API - Allows any Drupal code to integrate with Calais using a simple API"
+description = "Integration module for the OpenCalais Web Service API"
 package = "Calais"
-core = 6.x
-dependencies[] = rdf
+core = 7.x
+files[] = calais_api.install
+files[] = calais_api.module
+files[] = calais_api.test
+files[] = includes/Calais.inc
+files[] = includes/CalaisMetadata.inc
+files[] = includes/CalaisRdfProcessor.inc
+files[] = includes/SemanticProxy.inc
+configure = admin/config/calais/calais-api
+
+dependencies[] = libraries

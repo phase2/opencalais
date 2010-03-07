@@ -129,7 +129,7 @@ class CalaisMetadata {
   
   // Get a term if it exists, or create it if it doesn't
   protected function &_get_term($guid) {
-    if(!$this->has_guid($guid)) {
+    if (!$this->has_guid($guid)) {
       $this->terms[$guid] = new CalaisTerm($guid);
     }
     return $this->terms[$guid];

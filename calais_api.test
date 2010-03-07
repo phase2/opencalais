@@ -15,7 +15,7 @@ class CalaisApiTestCase extends DrupalWebTestCase {
 		parent::tearDown();
 	}
 	
-	function assertCalaisResults($results) {
+	function assertCalaisResults($results) {	
 		$this->assertFalse(empty($results), "Results were populated");
 
 		$this->arrayContains($results->City, 'Denver', 'Denver is a City');
@@ -46,7 +46,7 @@ class CalaisApiTestCase extends DrupalWebTestCase {
 		$this->assertFalse(property_exists($results, 'Geo'), 'GEO data handled correctly');
 		
 		$this->assertRelevance($results->Person, 'Barack Obama', 0.797);
-		$this->assertRelevance($results->ProvinceOrState, 'Indiana', 0.566);
+		$this->assertRelevance($results->ProvinceOrState, 'Indiana', 0.565);
 		
 		$this->assertResolvedName($results->Company, 'CBS', 'CBS Corporation', 'company', 'CBS disambiguates to CBS Corporation');
 
@@ -100,7 +100,6 @@ class CalaisWebServiceTestCase extends CalaisApiTestCase {
 		
 		$calais = new Calais(array('host' => 'api1.opencalais.com'));
 		$results = $calais->analyzeXML('Calais API Test', $body, $date);
-		
 		$this->assertCalaisResults($results);
 		
 		$this->arrayContains($results->SocialTags, 'Pennsylvania Democratic primary', 'Pennsylvania Democratic primary is in Social Tags');
@@ -111,7 +110,7 @@ class CalaisWebServiceTestCase extends CalaisApiTestCase {
 		$this->arrayContains($results->SocialTags, 'Barack Obama presidential primary campaign', 'Barack Obama presidential primary campaign is in Social Tags');
 		$this->arrayContains($results->SocialTags, 'Business', 'Business is in Social Tags');
 		$this->arrayContains($results->SocialTags, 'Labor', 'Labor is in Social Tags');
-		$this->assertRelevance($results->SocialTags, 'Barack Obama', 0.9);
+		$this->assertRelevance($results->SocialTags, 'Barack Obama', 0.7);
 		$this->assertRelevance($results->SocialTags, 'Barack Obama presidential primary campaign', 0.7);
 		$this->arrayContains($results->CalaisDocumentCategory, 'Business', 'Business is in Document Category');
 		$this->arrayContains($results->CalaisDocumentCategory, 'Labor', 'Labor is in Document Category');

@@ -1,4 +1,5 @@
 <?php
+// $Id$
 /**
  * @file CalaisRdfProcessor.inc
  *  The parser for the Calais RDF/XML responses.
@@ -32,7 +33,9 @@ class CalaisRdfProcessor {
     $parser->parse(NULL, $rdf_xml);
 
     $this->triples = $parser->getSimpleIndex();
-    $this->flatTriples = array_map('_rdf_deconstruct_arc2_triple', $parser->getTriples());
+    if (function_exists('_rdf_deconstruct_arc2_triple')) {
+      $this->flatTriples = array_map('_rdf_deconstruct_arc2_triple', $parser->getTriples());
+    }
 
     $this->keywords = new stdClass();
     $this->extract_document();
@@ -50,12 +53,12 @@ class CalaisRdfProcessor {
   protected function extract_document() {
     foreach ($this->triples as $guid => $data) {
       $type = $data[self::RDF_TYPE];
-      if(isset($type) && $type[0] == 'http://s.opencalais.com/1/type/sys/DocInfo') {
+      if (isset($type) && $type[0] == 'http://s.opencalais.com/1/type/sys/DocInfo') {
         $this->document = $data['http://s.opencalais.com/1/pred/document'][0];
         $this->document = preg_replace('/<!\[CDATA\[/ims', '', $this->document);
         $this->document = preg_replace('/\]\]>/ims', '', $this->document);
-        if(preg_match('@<BODY>(.*)</BODY>@ims', $this->document, $matches) > 0) {
-          if(count($matches) == 4) {
+        if (preg_match('@<BODY>(.*)</BODY>@ims', $this->document, $matches) > 0) {
+          if (count($matches) == 4) {
             $this->document = $matches[2];
           }
           else {
@@ -83,13 +86,13 @@ class CalaisRdfProcessor {
       if (strpos($type[0], "http://s.opencalais.com/1/type/em/e") !== FALSE) {
         $this->extract_entities($keywords, $type, $guid, $data);
       }
-      else if (strpos($type[0], 'http://s.opencalais.com/1/type/em/r') !== FALSE) {
+      elseif (strpos($type[0], 'http://s.opencalais.com/1/type/em/r') !== FALSE) {
         $this->extract_events($keywords, $type, $guid, $data);
       }
-      else if ($type[0] == 'http://s.opencalais.com/1/type/cat/DocCat') {
+      elseif ($type[0] == 'http://s.opencalais.com/1/type/cat/DocCat') {
         $this->extract_categories($keywords, $type, $guid, $data);
       }      
-      else if ($type[0] == 'http://s.opencalais.com/1/type/tag/SocialTag') {
+      elseif ($type[0] == 'http://s.opencalais.com/1/type/tag/SocialTag') {
         $this->extract_tags($keywords, $type, $guid, $data);
       }      
     }
@@ -112,7 +115,7 @@ class CalaisRdfProcessor {
       if ($type[0] == 'http://s.opencalais.com/1/type/sys/RelevanceInfo') {
         $this->set_relevance($keywords, $data);
       }
-      else if (strpos($type[0], 'http://s.opencalais.com/1/type/er') !== FALSE) {
+      elseif (strpos($type[0], 'http://s.opencalais.com/1/type/er') !== FALSE) {
         $er_type = preg_replace('@http://s.opencalais.com/1/type/er/@ims', '', $type[0]);
         $func = 'apply_resolved_' . drupal_strtolower(str_replace('/', '_', $er_type));
         
