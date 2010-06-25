@@ -1,7 +1,6 @@
 <?php
 /*
-  Copyright (C) 2008 by Phase2 Technology.
-  Author(s): Frank Febbraro, Irakli Nadareishvili
+  Copyright (C) 2008-2010 by Phase2 Technology.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License.
@@ -17,24 +16,26 @@
 /**
  * Build the administration page for Calais and Content Types
  */
-function calais_admin_settings() {
+function calais_basic_admin_settings() {
   $form = array();
 
-  $form['calais_store_rdf'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Store Calais RDF Locally'),
-    '#default_value' => variable_get('calais_store_rdf', FALSE),
-    '#description' => t('If checked, this will store the RDF data returned from Calais in the local RDF store. This data can be used to get a deeper view into the Calais results as the functionality is more fully developed. It also allows for future semantic applications to query and build upon this linked data.'),
-  );
 
-  calais_build_entity_settings($form);
-  calais_build_nodetype_settings($form);
 
-  $form['#submit'][] = 'calais_admin_settings_submit';
-
-  $form = system_settings_form($form);
   return $form;
 }
+
+
+/**
+ * Build the administration page for Calais and Content Types
+ */
+function calais_advanced_admin_settings() {
+  $form = array();
+
+
+
+  return $form;
+}
+
 
 /**
  * Build the Entity selector. Used for Entity suppression.
@@ -239,229 +240,4 @@ function calais_admin_settings_submit($form, &$form_state) {
       }
     }
   }
-}
-
-/**
- * Build the administration page for submitting all nodes of a specific Content Types to Calais.
- */
-function calais_bulk_process() {
-
-  $form = array();
-
-  $node_types = node_get_types('types', NULL, TRUE);
-  $node_types = array();
-  foreach (node_get_types('types', NULL, TRUE) as $type) {
-    $node_types[$type->type] = $type->name;
-  }
-
-  $form["calais_bulk_type"] = array(
-    '#type' => 'select',
-    '#title' => t('Content Type'),
-    '#options' => $node_types,
-    '#description' => t('Choose a content type whose Nodes will be bulk processed by Calais.'),
-  );
-  
-  $form["calais_bulk_limit"] = array(
-    '#type' => 'select',
-    '#title' => t('Nodes per batch'),
-    '#options' => drupal_map_assoc(array('1', '5', '10', '25', '50', '100')),
-    '#description' => t("Select the number of nodes per batch (needed for larger jobs where a 'single shot' isn't feasible)."),
-  );
-
-  $form["calais_bulk_threshold"] = array(
-    '#type' => 'textfield',
-    '#title' => t('Term Relevance Threshold for Calais'),
-    '#size' => 5,
-    '#default_value' => 0.650,
-    '#description' => t('Determine how relevant a term must be in order for Calais to suggest it for a particular node.  Based on a 0.00-1.00 scale, with 0.00 being least relevant (i.e. many terms appear).'),
-  );
-
-  $form["calais_bulk_throttle"] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Throttle processing'),
-    '#default_value' => TRUE,
-    '#description' => t('Limit the number of requests per second sent to the Calais web service, in order to ensure that all nodes are processed by Calais (recommended).'),
-  );
-
-  $form['submit'] = array('#type' => 'submit', '#value' => t('Bulk Process'));
-  $form['#submit'][] = 'calais_bulk_process_submit';
-
-
-  // Generate a summary of total node counts per content type
-  $header = array(
-    t('Type'),
-    t('Node Count'),
-    t('Status'),
-  );
-  $rows = array();
-  $result = db_query("SELECT type, COUNT(*) as count FROM {node} GROUP BY type");  
-  $progress = variable_get("calais_bulk_progress", array());
-  while ($row = db_fetch_object($result)) {
-    if(isset($node_types[$row->type])) {
-      $rows[] = array(
-          $node_types[$row->type],
-          $row->count,
-          isset($progress[$row->type]) 
-            ? t('Interrupted, will continue (!clear)', array('!clear' => l('Start Over', "admin/settings/calais/bulk-process/clear/{$row->type}", array('query' => drupal_get_destination())))) 
-            : t('Ready'),
-      );
-    }
-  }
-  $form['summary'] = array(
-    '#type' => 'markup',
-    '#value' => theme('table', $header, $rows),
-  );
-
-  return $form;
-}
-
-function calais_bulk_process_validate($form, &$form_state) {
-  $threshold = round($form_state['values']['calais_bulk_threshold'] * 1000);
-  if ($threshold < 0 || $threshold > 1000) {
-    form_set_error('calais_bulk_threshold', t('Threshold must be between 0.000 and 1.000'));
-  }
-}
-
-/**
- * Submit handler for the Bulk Processing Form.
- */
-function calais_bulk_process_submit($form, &$form_state) {
-
-  $values = $form_state['values'];
-  $type = $values['calais_bulk_type'];
-  $limit = $values['calais_bulk_limit'];
-  $throttle = $values['calais_bulk_throttle'];
-  $threshold = $values['calais_bulk_threshold'];
- 
-  $batch = array(
-    'operations' => array(
-      array('calais_batch_process', array($type, $limit, $throttle, $threshold)),
-    ),
-    'finished' => 'calais_batch_finished',
-    'title' => t('Calais Bulk Processing'),
-    'init_message' => t('Bulk processing of nodes is starting.'),
-    'error_message' => t('Calais Bulk Processing has encountered an error.'),
-  );
-  batch_set($batch);
-}
-
-/**
- * Clear a particular content types progress indicator for Calais bulk processing
- * 
- * @param $type
- *    The machine readable node type
- */
-function calais_bulk_clear($type) {
-  $progress = variable_get("calais_bulk_progress", array());
-  unset($progress[$type]);
-  variable_set("calais_bulk_progress", $progress);
-  watchdog('calais', "Cleared bulk progress indicator for %type nodes", array('%type' => $type));
-  drupal_goto();
-}
-
-/**
- * Process nodes in bulk by submitting blocks to Calais for metadata association.
- *  
- * @param type
- *   The node type that we want to process
- *
- * @param limit
- *   The number of nodes to process in each pass.
- *
- * @param throttle
- *   Flag indicating if Calais requests should be throttled (to stay below quota limits).
- *
- * @param threshold
- *   Relevence threshold for Calais terms.
- *
- * @param context
- *   $context is an array that will contain information about the
- *   status of the batch. The values in $context will retain their
- *   values as the batch progresses.
- *
- * @param $context['sandbox']
- *   Use the $context['sandbox'] rather than $_SESSION to store the
- *   information needed to track information between successive calls.
- *   The values in the sandbox will be stored and updated in the database
- *   between http requests until the batch finishes processing. This will
- *   avoid problems if the user navigates away from the page before the
- *   batch finishes.
- *
- * @param $context['results']
- *   The array of results gathered so far by the batch processing.
- *   The current operation can append its own.
- *
- * @param $context['message']
- *   A text message displayed in the progress page.
- *
- * @param $context['finished']
- *   A float number between 0 and 1 informing the processing engine
- *   of the completion level for the operation.
- *   1 (or no value explicitly set) means the operation is finished
- *   and the batch processing can continue to the next operation.
- */
-function calais_batch_process($type, $limit, $throttle, $threshold, &$context) {
-  // Get any in progress bulks
-  $progress = variable_get("calais_bulk_progress", array());
-  $lastnid = $progress[$type];
-
-  if (!isset($context['sandbox']['progress'])) {
-    $context['sandbox']['progress'] = 0;
-    if(isset($lastnid)) {
-      $context['sandbox']['current_node'] = $lastnid;
-      $context['sandbox']['max'] = db_result(db_query("SELECT COUNT(DISTINCT nid) FROM {node} WHERE type = '%s' and nid > %d", $type, $lastnid));
-    }
-    else {
-      $context['sandbox']['current_node'] = 0;
-      $context['sandbox']['max'] = db_result(db_query("SELECT COUNT(DISTINCT nid) FROM {node} WHERE type = '%s'", $type));
-    }
-  }
-  
-  // With each pass through the callback, retrieve the next group of nids.
-  $current = $context['sandbox']['current_node'];
-  $result = db_query_range("SELECT nid FROM {node} WHERE type = '%s' AND nid > %d ORDER BY nid ASC", $type, $current, 0, $limit);
-  while ($row = db_fetch_array($result)) {
-
-    $node = node_load($row['nid'], NULL, TRUE);
-    calais_process_node($node, CALAIS_PROCESS_AUTO, $threshold);
-    $progress[$type] = $node->nid;
-    variable_set("calais_bulk_progress", $progress);
-
-    if($throttle) {
-      usleep(100000);
-    }
-
-    $context['results'][] = $node->title;
-    $context['sandbox']['progress']++;
-    $context['sandbox']['current_node'] = $node->nid;
-    $context['message'] = t('Now processing %node', array('%node' => $node->title));    
-  }
-
-  watchdog('calais', "Bulk processed {$limit} %type nodes", array('%type' => $type));
-
-  // Inform the batch engine that we are not finished,
-  // and provide an estimation of the completion level we reached.
-  if ($context['sandbox']['progress'] != $context['sandbox']['max']) {
-    $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
-  }
-  else {
-    // We are finished so remove our progress tracker
-    unset($progress[$type]);
-    variable_set("calais_bulk_progress", $progress);
-  }
-}
-
-/**
- * Batch 'finished' callback
- */
-function calais_batch_finished($success, $results, $operations) {
-  if ($success) {
-    $message = count($results) .' nodes processed.';
-    $message .= theme('item_list', $results);
-  }
-  else {
-    $error_operation = reset($operations);
-    $message = 'An error occurred while processing '. $error_operation[0] .' with arguments :'. print_r($error_operation[0], TRUE);
-  }
-  drupal_set_message($message);
 }

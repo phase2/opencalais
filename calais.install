@@ -12,6 +12,7 @@
  */
 /**
  * @file
+ *
  */
 
 require_once dirname(__FILE__) . '/calais_api.module';
@@ -55,240 +56,233 @@ function calais_requirements($phase) {
  */
 function calais_install() {
   drupal_install_schema('calais');
+
   calais_create_vocabularies();
 
   // Module weights: put calais after taxonomy for form altering.
   db_query("UPDATE {system} SET weight = 10 WHERE name = 'calais'");
-  
-  calais_install_rdf_repository($ret);
 }
 
-/**
- * Create the RDF repository for Calais RDF storage.
- */
-function calais_install_rdf_repository(&$ret) {
-  module_load_include('inc', 'rdf', 'rdf.db');
-  rdf_db_create_repository(CALAIS_RDF_REPOSITORY, array('dc:title' => t('Calais Node'), 'dc:description' => t('Stores a node\'s RDF data as provided from the Calais Web Service.')));
-  $ret[] = array('success' => TRUE, 'query' => 'Added Calais Node RDF repository');
-}
 
 /**
  * Implementation of hook_schema().
  */
 function calais_schema() {
 
-  $schema['calais_term'] = array(
-    'description' => 'Holds retrieved Calais terms and the Drupal vocabulary to which they are associated',
-    'fields' => array(
-      'tid' => array(
-        'type' => 'serial', 
-        'unsigned' => TRUE, 
-        'not null' => TRUE,
-        'description' => t('Identifier for a Calais term')
-      ),
-      'name' => array(
-        'type' => 'varchar', 
-        'length' => 255, 
-        'not null' => TRUE,
-        'description' => t('The value of the term')
-      ),
-      'vid' => array(
-        'type' => 'int', 
-        'unsigned' => TRUE, 
-        'not null' => TRUE, 
-        'default' => 0,
-        'description' => t('The Vocabulary this term is in')
-      ),
-      'tdid' => array(
-        'type' => 'int', 
-        'unsigned' => TRUE, 
-        'description' => t('The Term Data ID for this mapping')
-      ),
-      'guid' => array(
-        'type' => 'varchar', 
-        'length' => 255, 
-        'not null' => TRUE,
-        'description' => t('The Calais GUID of this term')
-      ),
-      'resolved_guid' => array(
-        'type' => 'varchar', 
-        'length' => 255, 
-        'description' => t('The Disambiguated Calais GUID of this term (if it exists)')
-      ),
-      'resolved_name' => array(
-        'type' => 'varchar', 
-        'length' => 255, 
-        'description' => t('The normalized/resolved name of the term')
-      ),
-      'resolved_type' => array(
-        'type' => 'varchar', 
-        'length' => 255, 
-        'description' => t('The Disambiguated type of this Entity')
-      ),
-    ),
-    'indexes' => array(
-      'vid'    => array('vid'),
-      'tdid'    => array('tdid'),
-    ),
-    'primary key' => array('tid'),
-  );
-
+  $schema = array();
+  
+//  $schema['calais_term'] = array(
+//    'description' => 'Holds retrieved Calais terms and the Drupal vocabulary to which they are associated',
+//    'fields' => array(
+//      'tid' => array(
+//        'type' => 'serial', 
+//        'unsigned' => TRUE, 
+//        'not null' => TRUE,
+//        'description' => t('Identifier for a Calais term')
+//      ),
+//      'name' => array(
+//        'type' => 'varchar', 
+//        'length' => 255, 
+//        'not null' => TRUE,
+//        'description' => t('The value of the term')
+//      ),
+//      'vid' => array(
+//        'type' => 'int', 
+//        'unsigned' => TRUE, 
+//        'not null' => TRUE, 
+//        'default' => 0,
+//        'description' => t('The Vocabulary this term is in')
+//      ),
+//      'tdid' => array(
+//        'type' => 'int', 
+//        'unsigned' => TRUE, 
+//        'description' => t('The Term Data ID for this mapping')
+//      ),
+//      'guid' => array(
+//        'type' => 'varchar', 
+//        'length' => 255, 
+//        'not null' => TRUE,
+//        'description' => t('The Calais GUID of this term')
+//      ),
+//      'resolved_guid' => array(
+//        'type' => 'varchar', 
+//        'length' => 255, 
+//        'description' => t('The Disambiguated Calais GUID of this term (if it exists)')
+//      ),
+//      'resolved_name' => array(
+//        'type' => 'varchar', 
+//        'length' => 255, 
+//        'description' => t('The normalized/resolved name of the term')
+//      ),
+//      'resolved_type' => array(
+//        'type' => 'varchar', 
+//        'length' => 255, 
+//        'description' => t('The Disambiguated type of this Entity')
+//      ),
+//    ),
+//    'indexes' => array(
+//      'vid'    => array('vid'),
+//      'tdid'    => array('tdid'),
+//    ),
+//    'primary key' => array('tid'),
+//  );
+//
   // Table to store the association b/w a calais term and the node for which it was retrieved 
-  $schema['calais_term_node'] = array(
-    'description' => 'Holds the association between a retrieved Calais term and a Node',
-    'fields' => array(
-      'tid' => array(
-        'type' => 'int', 
-        'unsigned' => TRUE, 
-        'not null' => TRUE, 
-        'default' => 0,
-        'description' => t('The term identifier')
-      ),
-      'nid' => array(
-        'type' => 'int', 
-        'unsigned' => TRUE, 
-        'not null' => TRUE, 
-        'default' => 0,
-        'description' => t('The node for this term')
-      ),
-      'relevance' => array(
-        'type' => 'numeric', 
-        'size' => 'normal', 
-        'not null' => TRUE, 
-        'default' => 0.0, 
-        'precision' => 5, 
-        'scale' => 3,
-        'description' => t('The relevence score from Calais for this term/node combination')
-        ),
-    ),
-    'indexes' => array(
-      'tid'    => array('tid'),
-      'nid'    => array('nid'),
-    ),
-    'primary key' => array('tid', 'nid'),
-  );
-
+//  $schema['calais_term_node'] = array(
+//    'description' => 'Holds the association between a retrieved Calais term and a Node',
+//    'fields' => array(
+//      'tid' => array(
+//        'type' => 'int', 
+//        'unsigned' => TRUE, 
+//        'not null' => TRUE, 
+//        'default' => 0,
+//        'description' => t('The term identifier')
+//      ),
+//      'nid' => array(
+//        'type' => 'int', 
+//        'unsigned' => TRUE, 
+//        'not null' => TRUE, 
+//        'default' => 0,
+//        'description' => t('The node for this term')
+//      ),
+//      'relevance' => array(
+//        'type' => 'numeric', 
+//        'size' => 'normal', 
+//        'not null' => TRUE, 
+//        'default' => 0.0, 
+//        'precision' => 5, 
+//        'scale' => 3,
+//        'description' => t('The relevence score from Calais for this term/node combination')
+//        ),
+//    ),
+//    'indexes' => array(
+//      'tid'    => array('tid'),
+//      'nid'    => array('nid'),
+//    ),
+//    'primary key' => array('tid', 'nid'),
+//  );
+//
   // Table to store the resolved geo data 
-  $schema['calais_term_data_geo'] = array(
-    'description' => 'Holds the Disambiguated Geo data for an Entity',
-    'fields' => array(
-      'did' => array(
-        'type' => 'serial', 
-        'unsigned' => TRUE, 
-        'not null' => TRUE,
-        'description' => t('Data id')
-      ),
-      'tid' => array(
-        'type' => 'int', 
-        'unsigned' => TRUE, 
-        'not null' => TRUE, 
-        'default' => 0,
-        'description' => t('The term identifier')
-      ),
-      'latitude' => array(
-        'type' => 'numeric',
-        'precision' => 10,
-        'scale' => 6,
-        'default' => 0.0,
-        'description' => t('The latitude value of the Entity')
-      ),
-      'longitude' => array(
-        'type' => 'numeric',
-        'precision' => 10,
-        'scale' => 6,
-        'default' => 0.0,
-        'description' => t('The longitude value of the Entity')
-      ),
-      'shortname' => array(
-        'type' => 'varchar', 
-        'length' => 255, 
-        'description' => t('The short name of the Entity')
-      ),
-      'containedbystate' => array(
-        'type' => 'varchar', 
-        'length' => 255, 
-        'description' => t('The State that contains this Entity')
-      ),
-      'containedbycountry' => array(
-        'type' => 'varchar', 
-        'length' => 255, 
-        'description' => t('The Country that contains this Entity')
-      ),
-    ),
-    'unique keys' => array(
-      'tid' => array('tid')
-    ),
-    'primary key' => array('did'),
-  );
-
+//  $schema['calais_term_data_geo'] = array(
+//    'description' => 'Holds the Disambiguated Geo data for an Entity',
+//    'fields' => array(
+//      'did' => array(
+//        'type' => 'serial', 
+//        'unsigned' => TRUE, 
+//        'not null' => TRUE,
+//        'description' => t('Data id')
+//      ),
+//      'tid' => array(
+//        'type' => 'int', 
+//        'unsigned' => TRUE, 
+//        'not null' => TRUE, 
+//        'default' => 0,
+//        'description' => t('The term identifier')
+//      ),
+//      'latitude' => array(
+//        'type' => 'numeric',
+//        'precision' => 10,
+//        'scale' => 6,
+//        'default' => 0.0,
+//        'description' => t('The latitude value of the Entity')
+//      ),
+//      'longitude' => array(
+//        'type' => 'numeric',
+//        'precision' => 10,
+//        'scale' => 6,
+//        'default' => 0.0,
+//        'description' => t('The longitude value of the Entity')
+//      ),
+//      'shortname' => array(
+//        'type' => 'varchar', 
+//        'length' => 255, 
+//        'description' => t('The short name of the Entity')
+//      ),
+//      'containedbystate' => array(
+//        'type' => 'varchar', 
+//        'length' => 255, 
+//        'description' => t('The State that contains this Entity')
+//      ),
+//      'containedbycountry' => array(
+//        'type' => 'varchar', 
+//        'length' => 255, 
+//        'description' => t('The Country that contains this Entity')
+//      ),
+//    ),
+//    'unique keys' => array(
+//      'tid' => array('tid')
+//    ),
+//    'primary key' => array('did'),
+//  );
+//
   // Table to store the resolved company data 
-  $schema['calais_term_data_company'] = array(
-    'description' => 'Holds the Disambiguated company data for an Entity',
-    'fields' => array(
-      'did' => array(
-        'type' => 'serial', 
-        'unsigned' => TRUE, 
-        'not null' => TRUE,
-        'description' => t('Data id')
-      ),
-      'tid' => array(
-        'type' => 'int', 
-        'unsigned' => TRUE, 
-        'not null' => TRUE, 
-        'default' => 0,
-        'description' => t('The term identifier')
-      ),
-      'ticker' => array(
-        'type' => 'varchar', 
-        'length' => 25, 
-        'description' => t('The ticker symbol of the Entity')
-      ),
-      'score' => array(
-        'type' => 'numeric', 
-        'size' => 'normal', 
-        'default' => 0.0, 
-        'precision' => 5, 
-        'scale' => 3,
-        'description' => t('Confidence score (range: 0 lowest - 1 highest)')
-      ),
-    ),
-    'unique keys' => array(
-      'tid' => array('tid')
-    ),
-    'primary key' => array('did'),
-  );
-
+//  $schema['calais_term_data_company'] = array(
+//    'description' => 'Holds the Disambiguated company data for an Entity',
+//    'fields' => array(
+//      'did' => array(
+//        'type' => 'serial', 
+//        'unsigned' => TRUE, 
+//        'not null' => TRUE,
+//        'description' => t('Data id')
+//      ),
+//      'tid' => array(
+//        'type' => 'int', 
+//        'unsigned' => TRUE, 
+//        'not null' => TRUE, 
+//        'default' => 0,
+//        'description' => t('The term identifier')
+//      ),
+//      'ticker' => array(
+//        'type' => 'varchar', 
+//        'length' => 25, 
+//        'description' => t('The ticker symbol of the Entity')
+//      ),
+//      'score' => array(
+//        'type' => 'numeric', 
+//        'size' => 'normal', 
+//        'default' => 0.0, 
+//        'precision' => 5, 
+//        'scale' => 3,
+//        'description' => t('Confidence score (range: 0 lowest - 1 highest)')
+//      ),
+//    ),
+//    'unique keys' => array(
+//      'tid' => array('tid')
+//    ),
+//    'primary key' => array('did'),
+//  );
+//
   // Table to store the resolved product data 
-  $schema['calais_term_data_product'] = array(
-    'description' => 'Holds the Disambiguated Product data for a term',
-    'fields' => array(
-      'did' => array(
-        'type' => 'serial', 
-        'unsigned' => TRUE, 
-        'not null' => TRUE,
-        'description' => t('Data id')
-      ),
-      'tid' => array(
-        'type' => 'int', 
-        'unsigned' => TRUE, 
-        'not null' => TRUE, 
-        'default' => 0,
-        'description' => t('The term identifier')
-      ),
-      'score' => array(
-        'type' => 'numeric', 
-        'size' => 'normal', 
-        'default' => 0.0, 
-        'precision' => 5, 
-        'scale' => 3,
-        'description' => t('Confidence score (range: 0 lowest - 1 highest)')
-      ),
-    ),
-    'unique keys' => array(
-      'tid' => array('tid')
-    ),
-    'primary key' => array('did'),
-  );
+//  $schema['calais_term_data_product'] = array(
+//    'description' => 'Holds the Disambiguated Product data for a term',
+//    'fields' => array(
+//      'did' => array(
+//        'type' => 'serial', 
+//        'unsigned' => TRUE, 
+//        'not null' => TRUE,
+//        'description' => t('Data id')
+//      ),
+//      'tid' => array(
+//        'type' => 'int', 
+//        'unsigned' => TRUE, 
+//        'not null' => TRUE, 
+//        'default' => 0,
+//        'description' => t('The term identifier')
+//      ),
+//      'score' => array(
+//        'type' => 'numeric', 
+//        'size' => 'normal', 
+//        'default' => 0.0, 
+//        'precision' => 5, 
+//        'scale' => 3,
+//        'description' => t('Confidence score (range: 0 lowest - 1 highest)')
+//      ),
+//    ),
+//    'unique keys' => array(
+//      'tid' => array('tid')
+//    ),
+//    'primary key' => array('did'),
+//  );
   return $schema;
 }
 
@@ -298,14 +292,6 @@ function calais_schema() {
 function calais_uninstall() {
   drupal_uninstall_schema('calais');
   calais_remove_vocabularies();
-
-  // Remove taxonomy modifications
-  $ret = array();
-  db_drop_field($ret, 'term_data', 'guid');  
-  
-  if (function_exists('rdf_db_delete_repository')) {
-    rdf_db_delete_repository(CALAIS_RDF_REPOSITORY);
-  }
 }
 
 // Update to 6.x-2.x (and migrate from 5.x if needed)
@@ -411,20 +397,33 @@ function calais_update_6300() {
   return $ret;
 }
 
+//function calais_update_7000() {
+//  TODO: Migrate variable calais_vocabulary_names to calais_vocabulary_mapping
+//  TODO: Migrate variable calais_applied_entities_global to a config
+//  TODO: Migrate variable calais_applied_entities_{$type} to a config
+//  TODO: Migrate variable calais_use_global_{$type} to a config
+//  TODO: Migrate calais_node_{$key}_request to config (handle if there was not a migration to _request)
+//  TODO: Migrate calais_node_{$key}_process to config
+//              CALAIS_PROCESS_AUTO from 'AUTO' to 0
+//              CALAIS_PROCESS_AUTO_ONCE from 'AUTO_ONCE' to 1
+//              CALAIS_PROCESS_MANUAL from 'MANUAL' to 2
+//  TODO: Remove calais_api_allow_searching_{$key}
+//  TODO: Remove calais_api_allow_distribution_{$key}
+//  TODO: Migrate calais_threshold_{$type} to config
+//}
+
+
 /******************************** Helpers ****************************/
 /**
  * Create new vocabularies for all currently known Calais Entities
  */
 function calais_create_vocabularies() {
   $entities = calais_api_get_all_entities();
-  $vocabularies = array();
 
   foreach ($entities as $e) {
-    $vid = calais_create_entity_vocabulary(calais_api_make_readable($e));
-    $vocabularies[$e] = $vid;
+    calais_create_entity_vocabulary($e);
   }
 
-  variable_set('calais_vocabulary_names', $vocabularies);
   cache_clear_all();
 }
 
@@ -432,10 +431,10 @@ function calais_create_vocabularies() {
  * Remove vocabularies for all currently known Calais Entities
  */
 function calais_remove_vocabularies() {
-  $entities = calais_get_entity_vocabularies();
-  foreach ($entities as $key => $value) {
-    taxonomy_del_vocabulary($value);
+  $mapping = variable_get('calais_vocabulary_mapping', array());
+  foreach ($mapping as $entity_name => $machine_name) {
+    $vocab = taxonomy_vocabulary_machine_name_load($machine_name);
+    taxonomy_vocabulary_delete($vocab->vid);
   }
-
   cache_clear_all();
 }

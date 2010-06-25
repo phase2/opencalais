@@ -1,6 +1,6 @@
 <?php
 /*
-  Copyright (C) 2008 by Phase2 Technology.
+  Copyright (C) 2008-2010 by Phase2 Technology.
   Author(s): Frank Febbraro, Irakli Nadareishvili
 
   This program is free software; you can redistribute it and/or modify
@@ -12,29 +12,36 @@
  */
 /**
  * @file
+ *
+ * Had to rename calais_process_node, interfered with hook_process_HOOK
  */
 
-define('CALAIS_PROCESS_NO',         'NO');
-define('CALAIS_PROCESS_AUTO',       'AUTO');
-define('CALAIS_PROCESS_AUTO_ONCE',  'AUTO_ONCE');
-define('CALAIS_PROCESS_MANUAL',     'MANUAL');
-define('CALAIS_RDF_REPOSITORY',     'calais_node');
+// Request constants
+define('CALAIS_REQUEST_NO',     0);
+define('CALAIS_REQUEST_MANUAL', 1);
+define('CALAIS_REQUEST_AUTO',   2);
+
+// Constants for how to apply tags once retrieved
+define('CALAIS_PROCESS_AUTO',       0);
+define('CALAIS_PROCESS_AUTO_ONCE',  1);
+define('CALAIS_PROCESS_MANUAL',     2);
+
 define('CALAIS_WATCHDOG',           'Calais');
-
-/**
- * Implementation of hook_init().
- */
-function calais_init() {
-  // Only load these if it is not a cached page
-  module_load_include('inc', 'calais', 'calais.ui');
-  module_load_include('inc', 'calais', 'calais.admin');
-}
 
 /**
  * Implementation of hook_perm().
  */
 function calais_perm() {
-  return array('administer calais', 'access calais', 'access calais rdf');
+  return array(
+    'administer calais' => array(
+      'title' => t('OpenCalais Node Settings'),
+      'description' => t('Administer OpenCalais Node Settings'),
+    ),
+    'access calais' => array(
+      'title' => t('Access OpenCalais Keywords'),
+      'description' => t('Access the OpenCalais keywords for a Node'),
+    ),
+  );
 }
 
 /**
@@ -43,52 +50,55 @@ function calais_perm() {
 function calais_menu() {
   $items = array();
 
-  $items['admin/settings/calais/calais-node'] = array(
+  $items['admin/config/calais/calais-node'] = array(
     'title' => 'Calais Node Settings',
-    'description' => 'Configurations for Calais Integration with content nodes',
+    'description' => 'Configurations for OpenCalais Integration with content nodes',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('calais_admin_settings'),
     'access arguments' => array('administer calais'),
-    'type' => MENU_LOCAL_TASK
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'calais.admin.inc',
   );
 
-  $items['admin/settings/calais/bulk-process'] = array(
-    'title' => 'Calais Bulk Processing',
-    'description' => 'Submits all Nodes of a specific type to Calais for processing',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('calais_bulk_process'),
-    'access arguments' => array('administer calais'),
-    'weight' => 10,
-    'type' => MENU_LOCAL_TASK
-  );
 
-  $items['admin/settings/calais/bulk-process/clear/%'] = array(
-    'title' => 'Calais Reset Bulk Processing',
-    'description' => 'Clears a continue flag for a particular content type',
-    'page callback' => 'calais_bulk_clear',
-    'page arguments' => array(5),
-    'access arguments' => array('administer calais'),
-    'type' => MENU_CALLBACK
-  );
 
-  $items['node/%node/calais'] = array(
-    'title' => 'Calais',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('calais_keywords_form', 1),
-    'access callback' => 'calais_access',
-    'access arguments' => array(1),
-    'weight' => 2,
-    'type' => MENU_LOCAL_TASK
-  );
-
-  $items['node/%/calais/rdf'] = array(
-    'title' => 'Calais',
-    'page callback' => 'calais_get_rdf',
-    'page arguments' => array(1),
-    'access callback' => 'user_access',
-    'access arguments' => array('access calais rdf'),
-    'type' => MENU_CALLBACK
-  );
+//  $items['admin/settings/calais/bulk-process'] = array(
+//    'title' => 'Calais Bulk Processing',
+//    'description' => 'Submits all Nodes of a specific type to Calais for processing',
+//    'page callback' => 'drupal_get_form',
+//    'page arguments' => array('calais_bulk_process'),
+//    'access arguments' => array('administer calais'),
+//    'weight' => 10,
+//    'type' => MENU_LOCAL_TASK
+//  );
+//
+//  $items['admin/settings/calais/bulk-process/clear/%'] = array(
+//    'title' => 'Calais Reset Bulk Processing',
+//    'description' => 'Clears a continue flag for a particular content type',
+//    'page callback' => 'calais_bulk_clear',
+//    'page arguments' => array(5),
+//    'access arguments' => array('administer calais'),
+//    'type' => MENU_CALLBACK
+//  );
+//
+//  $items['node/%node/calais'] = array(
+//    'title' => 'Calais',
+//    'page callback' => 'drupal_get_form',
+//    'page arguments' => array('calais_keywords_form', 1),
+//    'access callback' => 'calais_access',
+//    'access arguments' => array(1),
+//    'weight' => 2,
+//    'type' => MENU_LOCAL_TASK
+//  );
+//
+//  $items['node/%/calais/rdf'] = array(
+//    'title' => 'Calais',
+//    'page callback' => 'calais_get_rdf',
+//    'page arguments' => array(1),
+//    'access callback' => 'user_access',
+//    'access arguments' => array('access calais rdf'),
+//    'type' => MENU_CALLBACK
+//  );
 
   return $items;
 }
@@ -100,30 +110,12 @@ function calais_menu() {
  */
 function calais_preprocess_node(&$variables) {
   $node = $variables['node'];
-  $count = rdf_count(NULL, NULL, NULL, calais_rdf_options($node->nid));
-  
+//  $count = rdf_count(NULL, NULL, NULL, calais_rdf_options($node->nid));
+//  
   // Add an RDF autodiscovery link when the node is displayed by itself as a page:
-  if (user_access('access calais rdf') && $count) {
-    rdf_add_autodiscovery_link(t('Calais RDF'), url("node/$node->nid/calais/rdf"), 'rdf+xml');
-  }
-}
-
-/**
- * Provide the Calais RDF describing a node.
- *
- * @param $nid
- *    The node id
- */
-function calais_get_rdf($nid) {
-  $format = 'rdf+xml';
-  $rdf_triples = rdf_query(NULL, NULL, NULL, calais_rdf_options($nid));
-  $rdf = rdf_serialize($rdf_triples, array('format' => $format));
-
-  $formats  = rdf_get_formats();
-  $output_format = $formats[$format];
-  drupal_set_header('Content-Type: '. $output_format->mime_type .'; charset='. $output_format->encoding);
-  drupal_set_header('Content-Length: '. strlen($rdf));
-  print $rdf;
+//  if (user_access('access calais rdf') && $count) {
+//    rdf_add_autodiscovery_link(t('Calais RDF'), url("node/$node->nid/calais/rdf"), 'rdf+xml');
+//  }
 }
 
 /**
@@ -146,22 +138,26 @@ function calais_theme() {
 }
 
 /**
- * Implementation of hook_nodeapi().
- *
- * Process node updates and if applicable, update the Calais terms.
+ * Implements hook_node_insert().
  */
-function calais_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
-  switch ($op) {
-    case "delete":
-      calais_delete_node($node);
-      break;
-    case "insert":
-    case "update":
-      $process_type = calais_processing_type($node);
-      $threshold = calais_get_node_threshold($node->type);
-      calais_process_node($node, $process_type, $threshold, $op);
-      break;
-  }
+function calais_node_insert(&$node) {
+  dpm('hook_node_insert');
+  calais_handle_node($node);
+}
+
+/**
+ * Implements hook_node_udpate().
+ */
+function calais_node_update(&$node) {
+  dpm('hook_node_update');
+  calais_handle_node($node, TRUE);
+}
+
+/**
+ * Implements hook_node_delete().
+ */
+function calais_node_delete(&$node) {
+  calais_delete_node($node);
 }
 
 /**
@@ -170,52 +166,50 @@ function calais_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
  * @param $node The node for deletion
  */
 function calais_delete_node($node) {
-  calais_remove_rdf($node);
   db_query("DELETE FROM {calais_term_node} WHERE nid=%d", $node->nid);
 }
 
 /**
  * Process the provided node according to the processing type.
  *
- * @param $node The node to process
- * @param $process_type The processing type for this node.
+ * @param $node 
+ *    The node to process
+ * @param $update 
+ *    Boolean representing if this is an update to a previously created node.
  */
-function calais_process_node(&$node, $process_type, $threshold, $op = 'insert') {
-  if ($process_type == CALAIS_PROCESS_NO || isset($node->calais->processor))
-    return;
+function calais_handle_node(&$node, $update = FALSE) {
 
-  // On feedapi runs, updates are missing vid so get it.
-  if(!isset($node->vid)) {
-    $node->vid = db_result(db_query("SELECT vid FROM {node} WHERE nid=%d", $node->nid));
-  }
-
-  $keywords = _calais_use_semanticproxy($node) 
-                  ? calais_process_with_semanticproxy($node)
-                  : calais_process_with_calais($node);
-
+  // TODO: Should this node type be processed?  
+  $config = (object)calais_get_node_config($node);
+  dpm($config);
+  $keywords = !empty($config->use_semantic_proxy)
+                  ? calais_invoke_semanticproxy($node)
+                  : calais_invoke_calais($node);
+  dpm($keywords);
   if(empty($keywords))
     return;
 
-  db_query("DELETE FROM {calais_term_node} WHERE nid=%d", $node->nid);
+  //db_query("DELETE FROM {calais_term_node} WHERE nid=%d", $node->nid);
 
-  module_invoke_all('calais_preprocess', $node, $keywords);
-
-  $vocabularies = calais_get_entity_vocabularies($node->type);
+  //module_invoke_all('calais_preprocess', $node, $keywords);
+    
   foreach ($keywords as $cat => $metadata) {
-    $vid = $vocabularies[$cat];
-    if ($vid) { // Only process terms for vocabularies that we care about
+    if (array_key_exists($cat, $config->entities)) {
+      $settings = $config->entities[$cat];
+      $machine_name = calais_get_vocabulary_mapping($cat);
+      $vocab = taxonomy_vocabulary_machine_name_load($machine_name);
       foreach ($metadata->terms as $term) {
-        calais_associate_term($vid, $term, $node);
-        if ( ($process_type == CALAIS_PROCESS_AUTO || ($process_type == CALAIS_PROCESS_AUTO_ONCE && $op == "insert")) 
-            && round($term->relevance * 1000) >= round($threshold * 1000)) {
-          calais_apply_to_node($vid, $term, $node);
+        //calais_associate_term($vid, $term, $node);
+        if ( ($config->process_type == CALAIS_PROCESS_AUTO || ($config->process_type == CALAIS_PROCESS_AUTO_ONCE && !$update)) 
+            && round($term->relevance * 1000) >= round($settings['threshold'] * 1000)) {
+          //calais_apply_to_node($vid, $term, $node);
+          dpm("Auto applying {$metadata->type} {$term->name} with relevance {$term->relevance}");
         }
       }
     }
   }
 
-  calais_store_rdf($node, $node->calais->service->flatTriples);
-  module_invoke_all('calais_postprocess', $node, $keywords);
+  //module_invoke_all('calais_postprocess', $node, $keywords);
 }
 
 /**
@@ -224,12 +218,11 @@ function calais_process_node(&$node, $process_type, $threshold, $op = 'insert') 
  * @param $node The node to process
  * @return The Calais keywords for this node.
  */
-function calais_process_with_calais(&$node) {
-  // #412796: This was changing $node->body w/o the clone
-  $loaded_node = node_build_content(drupal_clone($node));
-  $body = strip_tags(drupal_render($loaded_node->content));
+function calais_invoke_calais(&$node) {
+  $cloned_node = clone($node);
+  node_build_content($cloned_node);
+  $body = strip_tags(drupal_render($cloned_node->content));
   $date = format_date($node->created, 'custom', 'r');
-  $node_settings = calais_get_node_settings($node);
 
   // Allow modification of the content sent to Calais
   drupal_alter("calais_body", $body, $loaded_node);
@@ -239,7 +232,7 @@ function calais_process_with_calais(&$node) {
     return array();
   }
 
-  $calais = new Calais($node_settings);
+  $calais = new Calais();
   $keywords = $calais->analyzeXML($node->title, $body, $date);
   $node->calais->service = $calais;
 
@@ -252,7 +245,7 @@ function calais_process_with_calais(&$node) {
  * @param $node The node to process
  * @return The Calais keywords for this node.
  */
-function calais_process_with_semanticproxy(&$node) {
+function calais_invoke_semanticproxy(&$node) {
   $key = drupal_strtolower($node->type);
   $spfield = variable_get("calais_semanticproxy_field_{$key}", '');
   
@@ -306,15 +299,12 @@ function calais_process_with_semanticproxy(&$node) {
  * Make sure that a vocabulary exists for all entities returned, if not, create it.
  */
 function calais_calais_preprocess(&$node, &$keywords) {
-  $vocabularies = calais_get_entity_vocabularies();
+  $mappings = calais_get_vocabulary_mapping();
 
   foreach ($keywords as $cat => $metadata) {
-    $vid = $vocabularies[$cat];
-
     // Create a vocabulary if we come across an entity that we dont know of.
-    if (!$vid) {
-      $vocabularies[$cat] = calais_create_entity_vocabulary($metadata->readable_type());;
-      variable_set('calais_vocabulary_names', $vocabularies);
+    if (!array_key_exists($cat, $mappings)) {
+      calais_create_entity_vocabulary($cat);
       drupal_set_message(t('Added a Vocabulary for the new Calais Entity %entity. You may need to update your Calais Node Settings to take advantage of this new entity.', array('%entity' => $cat)));
     }
   }
@@ -542,77 +532,6 @@ function calais_taxonomy($op, $type, $data) {
 
 
 /**
- * Determines which processing type (none, manual, auto) is
- * applicable to a node specific node instance passed as an argument.
- *
- * @param mixed $var either a Node object or a valid node_type String
- */
-function calais_processing_type($var) {
-  $nodetype = is_object($var) ? $var->type : $var;
-  $key = drupal_strtolower($nodetype);
-  return variable_get("calais_node_{$key}_process", CALAIS_PROCESS_NO);
-}
-
-/**
- * Return the Calais parameter settings for the specific node type.
- */
-function calais_get_node_settings($node) {
-  $key = drupal_strtolower($node->type);
-  $settings = array(
-    'allowSearch' => variable_get("calais_api_allow_searching_{$key}", TRUE) ? 'true' : 'false',
-    'allowDistribution' => variable_get("calais_api_allow_distribution_{$key}", TRUE) ? 'true' : 'false',
-  );
-  return $settings;
-}
-
-/**
- * Return the relevancy threshold settings for the specific node type.
- *
- * @param $node_type Node type.
- */
-function calais_get_node_threshold($node_type) {
-  $type = drupal_strtolower($node_type);
-  return variable_get("calais_threshold_{$type}", 0.0);
-}
-
-
-/**
- * Get a list of the entities that Calais API defines:
- * http://opencalais.com/APIresponses
- *
- * If $type is not specified it will return all known Calais Entities.
- * however if $type is specified it will return only those Entities that the
- * specific node type is interested in, or the global list if no specific node type
- * settings have been configures.
- *
- * @param $type
- *    A node type, if Entities need to be filtered.
- * @return 
- *    Associative array of [entity_name => vid]'s
- */
-function calais_get_entity_vocabularies($type = NULL) {
-  $all_vocabs = variable_get('calais_vocabulary_names', FALSE);
-
-  if ($type) {
-    $applied_entities = variable_get('calais_applied_entities_global', FALSE);
-    if (!variable_get("calais_use_global_{$type}", TRUE)) {
-      $applied_entities = variable_get("calais_applied_entities_{$type}", FALSE);
-    }
-
-    foreach ($applied_entities as $entity => $apply_entity) {
-      if ($apply_entity) {
-        $applied_vocabs[$entity] = $all_vocabs[$entity];
-      }
-    }
-  }
-  else {
-    $applied_vocabs = $all_vocabs;
-  }
-
-  return $applied_vocabs;
-}
-
-/**
  * Returns the Calais vocabularies that are enabled for this node type.
  * <p>Compare to: calais_api_get_all_entities() which gives entityname/vid pairs.
  * Vocabulary names can be updated by users. Entity names stay as defined
@@ -710,71 +629,82 @@ function calais_get_keywords($nid, $type, $vid = NULL, $threshold = NULL) {
 }
 
 /**
- * Creates a new vocabulary for the supplied Calais entity name.
+ * If an entity name is provided it will return the mapping from a Calais entity 
+ * to Vocabulary machine name, otherwise it will return all mappings;
+ */
+function calais_get_vocabulary_mapping($entity = NULL) {
+  $mapping = variable_get('calais_vocabulary_mapping', array());
+  return isset($entity) ? $mapping[$entity] : $mapping;
+}
+
+
+/**
+ * Creates a new vocabulary for the supplied Calais entity name and add it to the mapping.
  */
 function calais_create_entity_vocabulary($entity) {
-    $description = t("Calais Entity Vocabulary: @name", array('@name' => $entity));
-    db_query("INSERT INTO {vocabulary} (name,description,module,tags) 
-              VALUES('%s','%s','calais',1)", $entity, $description);
-    return db_last_insert_id('vocabulary', 'vid');
+  $readable = calais_api_make_readable($entity);
+  $vocab = (object) array(
+    'name'         => $readable,
+    'machine_name' => calais_api_make_machine($entity),
+    'description'  => t("Vocabulary mapping to @name Calais Entity", array('@name' => $readable)),
+    'module'       => 'calais',
+  );
+  
+  taxonomy_vocabulary_save($vocab);
+  $mapping = variable_get('calais_vocabulary_mapping', array());
+  $mapping[$entity] = $vocab->machine_name;
+  variable_set('calais_vocabulary_mapping', $mapping);
 }
 
 /**
- * Get the standard RDF options array.
- *
- * @param $nid The node id
+ * Returns the configuration for the provided node.
  */
-function calais_rdf_options($nid) {
+function calais_get_node_config($node) {
+  $type = $node->type;
+  
+  $config = _calais_default_config($type);
+  
+  if (!isset($config->entities)) {
+    // Load entities from default/global;
+  }
+  return $config;
+}
+
+function _calais_default_config($type) {
   return array(
-    'graph' => "node/$nid/calais/rdf", 
-    'repository' => CALAIS_RDF_REPOSITORY,
+    'type' => $type,
+    'request_type' => CALAIS_REQUEST_AUTO,
+    'process_type' => CALAIS_PROCESS_AUTO,
+    'use_semantic_proxy' => FALSE,
+    'entities' => array(
+      'City' => array(
+        'threshold' => 0.5,
+      ),
+      'Company' => array(
+        'threshold' => 0.5,
+      ),
+      'Continent' => array(
+        'threshold' => 0.5,
+      ),
+      'Country' => array(
+        'threshold' => 0.5,
+      ),
+      'Organization' => array(
+        'threshold' => 0.5,
+      ),
+      'Person' => array(
+        'threshold' => 0.5,
+      ),
+      'ProvinceOrState' => array(
+        'threshold' => 0.5,
+      ),
+      'SocialTags' => array(
+        'threshold' => 0.5,
+      ), 
+    ),
   );
 }
 
-/**
- * Store the triples for this node in the local RDF store. Storing these allows for more
- * Semantic Web functionality to be developed later by not losing all of the rich metadata
- * returned by Calais. This could be used to batch process data that was missed originally
- * or by querying it later for use in RDFa rendering, etc.
- *
- * @param $node The node for association
- * @param $triples The flat set of triples
- */
-function calais_store_rdf($node, $triples) {
-  if(variable_get('calais_store_rdf', TRUE) && !empty($triples)) {
-    calais_remove_rdf($node);
-    rdf_insert_all($triples, calais_rdf_options($node->nid));  
-  }
-}
-
-/**
- * Store the triples for this node in the local RDF store. Storing these allows for more
- * Semantic Web functionality to be developed later by not losing all of the rich metadata
- * returned by Calais. This could be used to batch process data that was missed originally
- * or by querying it later for use in RDFa rendering, etc.
- *
- * @param $node The node for association
- * @param $triples The flat set of triples
- */
-function calais_remove_rdf($node) {
-  if(variable_get('calais_store_rdf', TRUE)) {
-    rdf_delete(NULL, NULL, NULL, calais_rdf_options($node->nid));
-  }
-}
-
-/**
- * Is this node configured to use SemanticProxy?
- *
- * @param $node 
- *    The node to examine
- * @return 
- *    TRUE if this node is configured to use SemanticProxy, FALSE otherwise.
- */
-function _calais_use_semanticproxy($node) {
-  $key = drupal_strtolower($node->type);
-  $spfield = variable_get("calais_semanticproxy_field_{$key}", '');
-  return !empty($spfield);
-}
 
 /**
  * Implementation of hook_semanticproxy_url_alter().
