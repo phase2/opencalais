@@ -172,12 +172,22 @@ function calais_api_analyze_xml($title, $body, $date, $parameters = array()) {
 }
 
 /**
- * Takes a CamelCase word and adds spaces to make it Camel Case
+ * Takes a 'CamelCase'' word and adds spaces to make it 'Camel Case'
  *
  * @return an formated string
  */
 function calais_api_make_readable($camel_case) {
   return preg_replace('/(.*?[a-z]{1})([A-Z]{1}.*?)/', '${1} ${2}', $camel_case);
+}
+
+/**
+ * Takes a 'CamelCase' word and makes it 'camel_case'
+ *
+ * @return an formated string
+ */
+function calais_api_make_machine($camel_case) {
+  $name = preg_replace('/(.*?[a-z]{1})([A-Z]{1}.*?)/', '${1}_${2}', $camel_case);
+  return strtolower($name);
 }
 
 /**
@@ -187,15 +197,15 @@ function calais_api_make_readable($camel_case) {
  */
 function calais_api_rdf_namespaces() {
   return array(
-    'c' => 'http://s.opencalais.com/1/pred/',
-    'sys' => 'http://s.opencalais.com/1/type/sys/',
-    'lid' => 'http://s.opencalais.com/1/type/lid/',
-    'cat' => 'http://s.opencalais.com/1/type/cat/',
-    'resolved' => 'http://s.opencalais.com/1/type/er/',
-    'cgeo' => 'http://s.opencalais.com/1/type/er/Geo/',
+    'c'         => 'http://s.opencalais.com/1/pred/',
+    'sys'       => 'http://s.opencalais.com/1/type/sys/',
+    'lid'       => 'http://s.opencalais.com/1/type/lid/',
+    'cat'       => 'http://s.opencalais.com/1/type/cat/',
+    'resolved'  => 'http://s.opencalais.com/1/type/er/',
+    'cgeo'      => 'http://s.opencalais.com/1/type/er/Geo/',
     'eventfact' => 'http://s.opencalais.com/1/type/em/r/',
-    'entity' => 'http://s.opencalais.com/1/type/em/e/',
-    'cld' => "http://s.opencalais.com/1/linkeddata/pred/",
+    'entity'    => 'http://s.opencalais.com/1/type/em/e/',
+    'cld'       => "http://s.opencalais.com/1/linkeddata/pred/",
   );
 }
 
