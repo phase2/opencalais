@@ -273,6 +273,7 @@ class CalaisFormSubmitTestCase extends CalaisTestCase {
 		$vocab = $this->createVocabulary();
 		$vid = $vocab['vid'];
 		$node = $this->drupalCreateNode();
+		variable_set("calais_node_{$node->type}_request", CALAIS_REQUEST_AUTO);						
 		variable_set("calais_node_{$node->type}_process", CALAIS_PROCESS_AUTO);						
 		variable_set('calais_vocabulary_names', array($vocab['name'] => $vocab['vid']));
 		variable_set('calais_applied_entities_global', array($vocab['name'] => $vocab['name']));
@@ -299,7 +300,6 @@ class CalaisFormSubmitTestCase extends CalaisTestCase {
 		taxonomy_save_vocabulary($vocab);
 		$html = $this->drupalPost("node/{$node->nid}/calais", $form, t('Save'));
 		$this->assertNoText($error);
-		$this->assertText(t('Calais settings have been saved.'));
 		
 		// //$node_terms = taxonomy_node_get_terms_by_vocabulary($node, $vid);
 		$node_terms = taxonomy_node_get_terms($node);
@@ -314,6 +314,60 @@ class CalaisFormSubmitTestCase extends CalaisTestCase {
 		$this->assertEqual($term2->tid, $calais_term2->tdid, 'Calais Term 2 has Tax Term ID set');
 	}	
 }
+
+class CalaisLinkedDataUriTestCase extends CalaisTestCase {
+	function getInfo() {
+    return array(
+      'name' => t('Linked Data URIs'),
+      'description' => t('Test the fetching and storage/lookup of Linked Open Data URIs.'),
+      'group' => t('Calais')
+    );
+  }
+
+	function setUp() {
+		// Get the configured API key before generating a new $db_prefix
+		$api_key = variable_get('calais_api_key', '');
+
+		parent::setUp();
+	
+		// Make sure Calais will process nodes of type page
+  	variable_set('calais_api_key', $api_key);		
+		variable_set("calais_node_page_request", CALAIS_REQUEST_AUTO);
+		variable_set("calais_node_page_process", CALAIS_PROCESS_AUTO);
+		variable_set('calais_lookup_loduri', TRUE);
+		variable_set('calais_applied_entities_global', array('Company' => 'Company'));
+		
+		$vocabs = variable_get('calais_vocabulary_names', array());
+		$company = (array)taxonomy_vocabulary_load($vocabs['Company']);
+		$company['nodes'] = array('page' => TRUE);
+		taxonomy_save_vocabulary($company);
+	}
+
+
+  // Test the retrieval and lookup of linked data uris
+	function testLookupURIs() {
+	  $node = new stdClass;
+	  $node->uid = 1;
+	  $node->status = 1;
+	  $node->type = 'page';
+	  $node->title = 'Test Node for Linked Data URIs';
+	  $node->body = 'There is one company that I would like to talk about, and that company is Microsoft';
+	  node_save($node);
+
+    $node = node_load($node->nid);
+    
+    $this->assertTrue(!empty($node->taxonomy), "Node has taxonomy terms populated by Calais");
+    $term = array_shift($node->taxonomy);
+    $this->assertIdentical('Microsoft', $term->name, "Term is not Microsoft");
+    $calais_term = calais_get_term_by_taxonomy($term->tid);
+    
+    $this->assertIdentical('http://cb.semsol.org/company/microsoft#self', $calais_term->uris['cb.semsol.org'], "CrunchBase URI is not Micrsoft");
+    $this->assertIdentical('http://dbpedia.org/resource/Microsoft', $calais_term->uris['dbpedia.org'], "DBpedia URI is not Micrsoft");
+    $this->assertIdentical('http://rdf.freebase.com/ns/guid.9202a8c04000641f8000000000026344', $calais_term->uris['rdf.freebase.com'], "Freebase URI is not Micrsoft");
+  }
+}
+
+
 
 /*
 class CalaisTaxonomyTermLookupTestCase extends CalaisTestCase {

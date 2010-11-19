@@ -29,11 +29,10 @@ function calais_views_data() {
       'left_field' => 'tid',
       'field' => 'tid',
     ),
-    // // This is provided for many_to_one argument
-    // 'calais_term_node' => array(
-    //   'field' => 'tid',
-    //   'left_field' => 'tid',
-    // ),
+    'term_data' => array(
+      'left_field' => 'tid',
+      'field' => 'tdid',
+    ),
   );
 
   $data['calais_term']['tid'] = array(
@@ -113,13 +112,8 @@ function calais_views_data() {
     ),
     // links to node directly via vid
     'node' => array(
-      'left_field' => 'vid',
-      'field' => 'vid',
-    ),
-    // links to node_revision directly via vid
-    'node_revision' => array(
-      'left_field' => 'vid',
-      'field' => 'vid',
+      'left_field' => 'nid',
+      'field' => 'nid',
     ),
   );
 
@@ -161,6 +155,17 @@ function calais_views_data() {
       'left_field' => 'tid',
       'field' => 'tid',
     ),
+    'term_data' => array(
+      'left_table' => 'calais_term',
+      'left_field' => 'tid',
+      'field' => 'tid',
+    ),
+    // links to node via tid and calai_term_node nid
+    'node' => array(
+      'left_table' => 'calais_term_node',
+      'left_field' => 'tid',
+      'field' => 'tid',
+    ),   
   );  
   
   $data['calais_term_data_geo']['latitude'] = array(
@@ -169,12 +174,18 @@ function calais_views_data() {
     'field' => array(
       'handler' => 'views_handler_field_numeric',
     ),
+    'filter' => array(
+     'handler' => 'views_handler_filter_float',
+    ),
   );
   $data['calais_term_data_geo']['longitude'] = array(
     'title' => t('Longitude'),
     'help' => t('The longitude geo coordinate of the Calais Entity'),
     'field' => array(
       'handler' => 'views_handler_field_numeric',
+    ),
+    'filter' => array(
+     'handler' => 'views_handler_filter_float',
     ),
   );  
   $data['calais_term_data_geo']['shortname'] = array(
@@ -219,6 +230,11 @@ function calais_views_data() {
       'left_field' => 'tid',
       'field' => 'tid',
     ),
+    'term_data' => array(
+      'left_table' => 'calais_term',
+      'left_field' => 'tid',
+      'field' => 'tid',
+    ),
   );    
   $data['calais_term_data_company']['ticker'] = array(
     'title' => t('Ticker'),
@@ -240,6 +256,11 @@ function calais_views_data() {
   $data['calais_term_data_product']['table']['join'] = array(
     'calais_term' => array(
       // links to calais_term directly via tid.
+      'left_field' => 'tid',
+      'field' => 'tid',
+    ),
+    'term_data' => array(
+      'left_table' => 'calais_term',
       'left_field' => 'tid',
       'field' => 'tid',
     ),

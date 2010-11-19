@@ -2,17 +2,7 @@
 name = Calais
 description = "Calais Web Service Integration."
 package = "Calais"
-core = 7.x
-
-files[] = calais.install
-files[] = calais.module
-files[] = calais.admin.inc
-files[] = calais.ui.inc
-files[] = calais.test
-
-configure = admin/config/calais/calais-node
-
-
+core = 6.x
 dependencies[] = calais_api
 dependencies[] = taxonomy
 
