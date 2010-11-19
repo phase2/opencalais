@@ -257,10 +257,9 @@ function calais_build_nodetype_settings(&$form) {
 
   $node_types = node_get_types('types', NULL, TRUE);
   $request_options = array(
-    CALAIS_REQUEST_NO             => t('NEVER: not processed by Calais'),
-    CALAIS_REQUEST_MANUAL         => t("MANUAL: initiate requests from the 'Calais' tab"),
-    CALAIS_REQUEST_AUTO           => t('AUTOMATIC: every time you save content, published or unpublished'),
-    CALAIS_REQUEST_AUTO_PUBLISHED => t('AUTOMATIC PUBLISHED: every time you save published content'),
+    CALAIS_REQUEST_NO     => t('NEVER: not processed by Calais'),
+    CALAIS_REQUEST_MANUAL => t("MANUAL: initiate requests from the 'Calais' tab"),
+    CALAIS_REQUEST_AUTO   => t('AUTOMATIC: every time you save content'),
   );
   $process_options = array(
     CALAIS_PROCESS_MANUAL    => t('NEVER: suggest the terms, but let me tag the content'),
@@ -309,7 +308,7 @@ function calais_build_nodetype_settings(&$form) {
       '#default_value' => variable_get("calais_threshold_{$key}", 0.0),
       '#description' => t('Determine how relevant a term must be in order for Calais to suggest it for a particular node.  Based on a 0.00-1.00 scale, with 0.00 being least relevant (i.e. many terms appear).'),
     );
-    
+
     calais_build_entity_settings($form, $key, $name, TRUE);
   }
 }

@@ -15,10 +15,10 @@
  */
 
 // Request constants
-define('CALAIS_REQUEST_NO',     0);
-define('CALAIS_REQUEST_MANUAL', 1);
-define('CALAIS_REQUEST_AUTO',   2);
-
+define('CALAIS_REQUEST_NO',             0);
+define('CALAIS_REQUEST_MANUAL',         1);
+define('CALAIS_REQUEST_AUTO',           2);
+define('CALAIS_REQUEST_AUTO_PUBLISHED', 3);
 
 // Constants for how to apply tags once retrieved
 define('CALAIS_PROCESS_AUTO',       'AUTO');
@@ -172,6 +172,17 @@ function calais_theme() {
 }
 
 /**
+ * Implementation of hook_scheduler_api().
+ *
+ * Update the Calais terms if scheduler is ran to publish a node.
+ */
+function calais_scheduler_api(&$node, $action){
+  if($action == 'published'){
+    node_invoke_nodeapi($node, 'update');
+  }
+}
+
+/**
  * Implementation of hook_nodeapi().
  *
  * Process node updates and if applicable, update the Calais terms.
@@ -183,7 +194,7 @@ function calais_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
       break;
     case "insert":
     case "update":
-      if (calais_get_request_type($node) == CALAIS_REQUEST_AUTO) {
+      if (calais_get_request_type($node) == CALAIS_REQUEST_AUTO || (calais_get_request_type($node) == CALAIS_REQUEST_AUTO_PUBLISHED && $node->status == 1)) {
         $process_type = calais_get_processing_type($node);
         $threshold = calais_get_node_threshold($node->type);
         calais_process_node($node, $process_type, $threshold, $op);
