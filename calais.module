@@ -232,7 +232,7 @@ function calais_invoke_calais(&$node) {
     return array();
   }
 
-  $calais = new Calais();
+  $calais = calais_api_get_service();
   $keywords = $calais->analyzeXML($node->title, $body, $date);
   $node->calais->service = $calais;
 
@@ -269,7 +269,7 @@ function calais_invoke_semanticproxy(&$node) {
     
     drupal_alter('semanticproxy_url', $url);
     
-    $sp = new SemanticProxy();
+    $sp = calais_api_get_service(array(), 'semanticproxy');
     $keywords = $sp->analyze($url);
     $node->calais->service = $sp;
     

@@ -28,6 +28,10 @@ refer to INSTALL.txt that comes with the RDF module for more details.
    administration -> site configuration -> modules -> Calais
    (admin/settings/calais-api)
 
+There are some reports that OpenCalais processing can use a lot of memory 
+(the RDf data returned can be quite large)  Consider 64MB the minimum PHP
+memory allocation needed. You may need more depending on what you have
+installed and enabled.
 
 CREDITS
 ========

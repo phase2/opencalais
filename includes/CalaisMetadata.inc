@@ -69,13 +69,16 @@ class CalaisMetadata {
    *    The resolved GUID of this entity (for Linked Data purposes)
    * @param $extra
    *    The extra data associated with a resolved entity (e.g. lat/lon, ticker, etc.)
+   * @param $uris
+   *    Any Linked Open Data URIs associated with the resolved entity
    */
-  function set_term_resolved_data($guid, $resolvedName, $resolvedGuid, $resolvedType = NULL, $extra = array()) {
+  function set_term_resolved_data($guid, $resolvedName, $resolvedGuid, $resolvedType = NULL, $extra = array(), $uris = array()) {
     $term = &$this->_get_term($guid);
     $term->resolved_name = $resolvedName;      
     $term->resolved_guid = $resolvedGuid;      
     $term->resolved_type = $resolvedType;      
     $term->extra = array_merge($term->extra, $extra);   
+    $term->uris = array_merge($term->uris, $uris);   
   }
   
   /**
@@ -168,6 +171,7 @@ class CalaisTerm {
     $this->guid = $guid;
     $this->name = $name;
     $this->relevance = $relevance;
+    $this->uris = array();
     $this->extra = array();
   }
 }

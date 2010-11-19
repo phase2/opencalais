@@ -9,7 +9,8 @@ files[] = calais_api.test
 files[] = includes/Calais.inc
 files[] = includes/CalaisMetadata.inc
 files[] = includes/CalaisRdfProcessor.inc
-files[] = includes/SemanticProxy.inc
+files[] = includes/CalaisService.inc
+files[] = includes/SemanticProxyService.inc
 configure = admin/config/calais/calais-api
 
 dependencies[] = libraries

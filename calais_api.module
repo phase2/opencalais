@@ -85,22 +85,27 @@ function calais_api_admin_settings() {
     '#size' => 60,
     '#description' => t('The domain name for the server to use.  Typically you will not have to change this unless you want to test beta functionality.'),
   );
-  $form['calais_api_allow_searching'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Allow Calais Searching'),
-    '#default_value' => variable_get('calais_api_allow_searching', TRUE),
-    '#description' => t('Indicates whether future searches can be performed on the extracted metadata by Calais'),
-  );
-  $form['calais_api_allow_distribution'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Allow Calais Distribution'),
-    '#default_value' => variable_get('calais_api_allow_distribution', TRUE),
-    '#description' => t('Indicates whether the extracted metadata can be distributed by Calais'),
-  );
   
   $form = system_settings_form($form);
   return $form;
 }
+
+/**
+ * Get the service implementing the Calais interface.
+ */
+function calais_api_get_service($options = array(), $type = NULL) {
+  switch ($type) {
+    case 'calais':
+      $class = variable_get('calais_calais_impl', 'CalaisService');
+    case 'semanticproxy':
+      $class = variable_get('calais_semanticproxy_impl', 'SemanticProxyService');
+    default:
+      $class = variable_get('calais_default_impl', 'CalaisService');
+  }
+  
+  return new $class($options);
+}
+
 
 /**
 * 
@@ -145,7 +150,7 @@ function calais_api_analyze($content, $parameters = array()) {
     return array();
   }
 
-  $calais = new Calais($parameters);
+  $calais = calais_api_get_service($parameters);
   return $calais->analyze($content);
 }
 
@@ -167,7 +172,7 @@ function calais_api_analyze_xml($title, $body, $date, $parameters = array()) {
     return array();
   }
 
-  $calais = new Calais($parameters);
+  $calais = calais_api_get_service($parameters);
   return $calais->analyzeXML($title, $body, $date);
 }
 

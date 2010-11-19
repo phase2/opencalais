@@ -5,7 +5,7 @@
  * The main interface to the semantic proxy web service
  */
 
-class SemanticProxy {
+class SemanticProxy implements Calais {
   
   const SERVICE = 'http://@host/processurl/@apikey/@format/@url';
   
@@ -44,13 +44,14 @@ class SemanticProxy {
   /**
    * Analyze the url via SemanticProxy/Calais
    *
-   * @param $url 
+   * @param $content 
    *    The url to send to SemanticProxy for analysis
    * @return 
    *    The processed Calais results. The raw RDF result is contained in the $this->rdf field.
    */
-  public function analyze($url) {
+  public function analyze($content) {
 
+    $url = content;
     if (!valid_url($url, TRUE)) {
       self::log_url_error($url);
       return array();
@@ -78,6 +79,13 @@ class SemanticProxy {
       $this->flatTriples = $this->processor->flatTriples;
     }
     return $this->keywords;    
+  }
+
+  /**
+   *
+   */
+  public function analyzeXML($title, $body, $date) {
+    throw new Exception('Method analyzeXML is not implemented in SemanticProxyService');
   }
 
   private static function log_url_error($url) {
