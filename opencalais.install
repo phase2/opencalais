@@ -1,0 +1,103 @@
+<?php
+/**
+ * @file opencalais.install
+ */
+ 
+/**
+ * Implements hook_install().
+ */
+function opencalais_install() {
+  db_query("UPDATE {system} SET weight = 10 WHERE name = 'opencalais'");
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function opencalais_uninstall() {
+}
+
+/**
+ * Implements hook_schema().
+ */
+function opencalais_schema() {
+  $schema['opencalais_term'] = array(
+    'description' => 'Holds retrieved OpenCalais terms and the Vocabulary to which they are associated',
+    'fields' => array(
+      'tid' => array(
+        'type' => 'serial', 
+        'unsigned' => TRUE, 
+        'not null' => TRUE,
+        'description' => 'Identifier for an OpenCalais term'
+      ),
+      'name' => array(
+        'type' => 'varchar', 
+        'length' => 255, 
+        'not null' => TRUE,
+        'description' => 'The name of the term'
+      ),
+      'type' => array(
+        'type' => 'varchar', 
+        'length' => 255, 
+        'not null' => TRUE,
+        'description' => 'The type of the term'
+      ),
+      'vid' => array(
+        'type' => 'int', 
+        'unsigned' => TRUE, 
+        'not null' => TRUE, 
+        'default' => 0,
+        'description' => 'The Vocabulary this term is in'
+      ),
+      'tdid' => array(
+        'type' => 'int', 
+        'unsigned' => TRUE, 
+        'description' => 'The Taxonomy Term ID for this OpenCalais Term'
+      ),
+      'guid' => array(
+        'type' => 'varchar', 
+        'length' => 255, 
+        'not null' => TRUE,
+        'description' => 'The OpenCalais GUID of this term'
+      ),
+      'resolved_guid' => array(
+        'type' => 'varchar', 
+        'length' => 255, 
+        'description' => 'The Disambiguated OpenCalais GUID of this term (if it exists)'
+      ),
+      'resolved_name' => array(
+        'type' => 'varchar', 
+        'length' => 255, 
+        'description' => 'The normalized/resolved name of the term'
+      ),
+      'resolved_type' => array(
+        'type' => 'varchar', 
+        'length' => 255, 
+        'description' => 'The disambiguated type of this Entity'
+      ),
+    ),
+    'indexes' => array(
+      'vid'    => array('vid'),
+      'tdid'    => array('tdid'),
+      'guid'    => array('guid'),
+    ),
+    'foreign keys' => array(
+      'opencalais_term_taxonomy_term_tid' => array(
+        'table' => 'taxonomy_term_data',
+        'columns' => array('tdid' => 'tid'),
+       ),
+      'opencalais_term_vocabulary_vid' => array(
+        'table' => 'taxonomy_vocabulary',
+        'columns' => array('vid' => 'vid'),
+       ),
+    ),    
+    'primary key' => array('tid'),
+  );
+}
+ 
+function _opencalais_update_7000() {
+  // Migrate all data from old tables to new tables
+
+  // Migrate permissions
+}
+ 
+ 

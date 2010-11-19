@@ -1,0 +1,156 @@
+<?php
+/**
+ * @file opencalais.module
+ */
+ 
+/**
+ * Implements hook_permission().
+ */
+function opencalais_permission() {
+  return array(
+    'administer calais' => array(
+      'title' => t('Administer OpenCalais Tagging'),
+      'description' => t('Configure how Entities are tagged'),
+    ),
+    'access calais' => array(
+      'title' => t('Access OpenCalais Tags'),
+      'description' => t('View and modify tags on Entities'),
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function opencalais_menu() {
+  $items = array();
+
+
+  $items['admin/config/calais/calais-tagging'] = array(
+    'title' => 'OpenCalais Tagging Settings',
+    'description' => 'Configure Entity Tagging',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('opencalais_admin_settings'),
+    'access arguments' => array('administer calais'),
+    'file' => 'opencalais.admin.inc',
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+/*
+  $items['admin/settings/calais/queue'] = array(
+    'title' => 'Calais Bulk Processing',
+    'description' => 'Submits all Nodes of a specific type to Calais for processing',
+    'page callback' => 'calais_bulk_process',
+    'access arguments' => array('administer calais'),
+    'weight' => 10,
+    'file' => 'opencalais.admin.inc',
+    'type' => MENU_LOCAL_TASK
+  );
+  $items['admin/settings/calais/queue/clear/%'] = array(
+    'title' => 'Clear Calais Bulk Queue',
+    'description' => 'Clears the bulk queue for a particular content type',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('calais_queue_clear_confirm', 5),
+    'access arguments' => array('administer calais'),
+    'file' => 'opencalais.admin.inc',
+    'type' => MENU_CALLBACK
+  );
+
+  $items['admin/settings/calais/queue/enqueue/%'] = array(
+    'title' => 'Calais Queue Processing',
+    'description' => 'Submits all Content of the specified type to Calais for processing',
+    'page callback' => 'calais_enqueue',
+    'page arguments' => array(5),
+    'access arguments' => array('administer calais'),
+    'file' => 'opencalais.admin.inc',
+    'type' => MENU_CALLBACK
+  );
+*/
+
+  $items['node/%node/opencalais'] = array(
+    'title' => 'Tags',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('opencalais_tag_form', 1),
+    'access callback' => 'opencalais_access',
+    'access arguments' => array(1),
+    'weight' => 2,
+    'file' => 'opencalais.pages.inc',
+    'type' => MENU_LOCAL_TASK
+  );
+
+/*
+  $items['node/%/calais/rdf'] = array(
+    'title' => 'Calais',
+    'page callback' => 'calais_get_rdf',
+    'page arguments' => array(1),
+    'access callback' => 'user_access',
+    'access arguments' => array('access calais rdf'),
+    'file' => 'opencalais.pages.inc',
+    'type' => MENU_CALLBACK
+  );
+*/
+  return $items;
+}
+
+/**
+ * Implements hook_access().
+ */
+function opencalais_access($node) {
+  return TRUE;
+  // If the user can access and tagging is enabled for this node
+  //return user_access('access calais') && calais_get_request_type($node) != CALAIS_REQUEST_NO;
+}
+
+/**
+ * Implements hook_entity_info().
+ */
+function opencalais_entity_info() {
+  $return = array(
+    'opencalais_term' => array(
+      'label' => t('OpenCalais Term'),
+      'entity class' => 'EntityClass',
+      'controller class' => 'EntityAPIController',
+      'base table' => 'opencalais_term',
+      'fieldable' => TRUE,
+      'entity keys' => array(
+        'id' => 'tid',
+        'label' => 'name',
+        'bundle' => 'type',
+      ),
+      'bundles' => array(),
+      'bundle keys' => array(
+        'bundle' => 'type',
+      ),
+    ),
+  );
+  
+  // Bundles must provide a human readable name so we can create help and error
+  // messages, and the path to attach Field admin pages to.
+  /*
+  foreach (node_type_get_names() as $type => $name) {
+    $return['node']['bundles'][$type] = array(
+      'label' => $name, 
+      'admin' => array(
+        'path' => 'admin/structure/types/manage/%node_type', 
+        'real path' => 'admin/structure/types/manage/' . str_replace('_', '-', $type), 
+        'bundle argument' => 4, 
+        'access arguments' => array('administer content types'),
+      ),
+    );
+  }
+  */
+  
+  return $return;
+}
+
+
+
+
+
+
+
+
+
+
+
+
