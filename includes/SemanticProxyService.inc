@@ -5,7 +5,7 @@
  * The main interface to the semantic proxy web service
  */
 
-class SemanticProxy implements Calais {
+class SemanticProxyService implements Calais {
   
   const SERVICE = 'http://@host/processurl/@apikey/@format/@url';
   

@@ -98,7 +98,7 @@ class CalaisWebServiceTestCase extends CalaisApiTestCase {
 		$body = filter_xss($this->get_test_content());
 		$date = format_date(time(), 'custom', 'r');
 		
-		$calais = new Calais(array('host' => 'api1.opencalais.com'));
+		$calais = calais_api_get_service(array('host' => 'api1.opencalais.com'));
 		$results = $calais->analyzeXML('Calais API Test', $body, $date);
 		$this->assertCalaisResults($results);
 		
@@ -177,7 +177,7 @@ class SemanticProxyTestCase extends CalaisApiTestCase {
   }
 
 	function testAnalyze() {
-		$sp = new SemanticProxy();
+  	$sp = calais_api_get_service(array(), 'semanticproxy');
 		$results = $sp->analyze('http://voices.washingtonpost.com/44/2008/03/31/three_turning_points_on_the_ro.html');
 		drupal_set_message($sp->rdf);
 		$this->assertCalaisResults($results);

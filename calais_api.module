@@ -95,10 +95,10 @@ function calais_api_admin_settings() {
  */
 function calais_api_get_service($options = array(), $type = NULL) {
   switch ($type) {
-    case 'calais':
-      $class = variable_get('calais_calais_impl', 'CalaisService');
     case 'semanticproxy':
       $class = variable_get('calais_semanticproxy_impl', 'SemanticProxyService');
+      break;
+    case 'calais':
     default:
       $class = variable_get('calais_default_impl', 'CalaisService');
   }
