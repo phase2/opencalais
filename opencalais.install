@@ -41,12 +41,11 @@ function opencalais_schema() {
         'not null' => TRUE,
         'description' => 'The type of the term'
       ),
-      'vid' => array(
-        'type' => 'int', 
-        'unsigned' => TRUE, 
+      'vocabulary' => array(
+        'type' => 'varchar', 
+        'length' => 255, 
         'not null' => TRUE, 
-        'default' => 0,
-        'description' => 'The Vocabulary this term is in'
+        'description' => 'The Vocabulary machine name this term is in'
       ),
       'tdid' => array(
         'type' => 'int', 
@@ -76,9 +75,9 @@ function opencalais_schema() {
       ),
     ),
     'indexes' => array(
-      'vid'    => array('vid'),
-      'tdid'    => array('tdid'),
-      'guid'    => array('guid'),
+      'vocabulary' => array('vocabulary'),
+      'tdid' => array('tdid'),
+      'guid' => array('guid'),
     ),
     'foreign keys' => array(
       'opencalais_term_taxonomy_term_tid' => array(
@@ -87,11 +86,13 @@ function opencalais_schema() {
        ),
       'opencalais_term_vocabulary_vid' => array(
         'table' => 'taxonomy_vocabulary',
-        'columns' => array('vid' => 'vid'),
+        'columns' => array('vocabulary' => 'machine_name'),
        ),
     ),    
     'primary key' => array('tid'),
   );
+  
+  return $schema;
 }
  
 function _opencalais_update_7000() {

@@ -36,6 +36,7 @@ function opencalais_menu() {
     'type' => MENU_NORMAL_ITEM,
   );
 
+
 /*
   $items['admin/settings/calais/queue'] = array(
     'title' => 'Calais Bulk Processing',
@@ -69,8 +70,8 @@ function opencalais_menu() {
 
   $items['node/%node/opencalais'] = array(
     'title' => 'Tags',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('opencalais_tag_form', 1),
+    'page callback' => 'opencalais_tag_form',
+    'page arguments' => array(1),
     'access callback' => 'opencalais_access',
     'access arguments' => array(1),
     'weight' => 2,
@@ -108,7 +109,6 @@ function opencalais_entity_info() {
   $return = array(
     'opencalais_term' => array(
       'label' => t('OpenCalais Term'),
-      'entity class' => 'EntityClass',
       'controller class' => 'EntityAPIController',
       'base table' => 'opencalais_term',
       'fieldable' => TRUE,
@@ -123,6 +123,8 @@ function opencalais_entity_info() {
       ),
     ),
   );
+  
+  // ***  Add a bundle here for each Entity Type?
   
   // Bundles must provide a human readable name so we can create help and error
   // messages, and the path to attach Field admin pages to.
@@ -143,9 +145,42 @@ function opencalais_entity_info() {
   return $return;
 }
 
+function opencalais_node_insert($node) {
+  opencalais_tag($node);
+}
 
+function opencalais_node_update($node) {
+  opencalais_tag($node);
+}
 
+function opencalais_tag($node) {
+  $data = array(
+    'name' => 'Mr. '. $node->title,
+    'type' => 'Person',
+    'vocabulary' => 'tags',
+    'guid' => uniqid(),    
+  );
+  $term = new Entity($data, 'opencalais_term');
+  $term->save();
+  dpm($term);
 
+}
+
+function opencalais_tag_form($node) {
+  $terms = entity_load('opencalais_term');
+  
+  $build = array(
+    '#theme' => 'table',
+    '#header' => array('ID', 'Name', 'Type', 'Vocab', 'GUID'),
+    '#empty' => t('No tags available.'),
+  );
+  $rows = array();
+  foreach ($terms as $tid => $term) {
+    $rows[] = array($term->tid, $term->name, $term->type, $term->vocabulary, $term->guid);
+  }
+  $build['#rows'] = $rows;
+  return $build;
+}
 
 
 
