@@ -42,7 +42,7 @@ class CalaisService implements Calais {
    */
   function __construct($options = array()) {
     $this->defaults['externalID'] = time();
-    $this->defaults['host'] = variable_get('calais_api_server', 'api1.opencalais.com');
+    $this->defaults['host'] = variable_get('opencalais_api_server', 'api1.opencalais.com');
     
     $this->parameters = array_merge($this->defaults, $options);
   }
@@ -71,7 +71,7 @@ class CalaisService implements Calais {
 
     $headers = array('Content-Type' => 'application/x-www-form-urlencoded');
     $data    = array(
-      'licenseID' => variable_get('calais_api_key', NULL),
+      'licenseID' => variable_get('opencalais_api_key', NULL),
       'content' => $content,
       'paramsXML' => $this->build_xml_params(),
     );
@@ -145,8 +145,8 @@ EOD;
   }  
   
   private static function log_calais_error($ret) {
-    $msg = t('Calais processing error: @msg', array('@msg' => $ret->data));
+    $msg = t('OpenCalais processing error: @msg', array('@msg' => $ret->data));
     drupal_set_message($msg, 'error');
-    watchdog('calais', 'Calais processing error: (@code - @error) @msg', array('@code' => $ret->code, '@error' => $ret->error, '@msg' => $ret->data), WATCHDOG_ERROR);
+    watchdog('opencalais', 'OpenCalais processing error: (@code - @error) @msg', array('@code' => $ret->code, '@error' => $ret->error, '@msg' => $ret->data), WATCHDOG_ERROR);
   }
 }

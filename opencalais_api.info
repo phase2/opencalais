@@ -1,0 +1,16 @@
+; $Id $
+name = OpenCalais API
+description = "Integration module for the OpenCalais Web Service API"
+package = "OpenCalais"
+core = 7.x
+files[] = opencalais_api.install
+files[] = opencalais_api.module
+files[] = opencalais_api.test
+files[] = includes/Calais.inc
+files[] = includes/CalaisMetadata.inc
+files[] = includes/CalaisRdfProcessor.inc
+files[] = includes/CalaisService.inc
+files[] = includes/SemanticProxyService.inc
+configure = admin/config/opencalais/api
+
+dependencies[] = libraries

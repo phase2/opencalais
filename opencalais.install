@@ -8,6 +8,10 @@
  */
 function opencalais_install() {
   db_query("UPDATE {system} SET weight = 10 WHERE name = 'opencalais'");
+  
+  foreach (opencalais_get_all_entities() as $entity) {
+    opencalais_create_vocabulary($entity);
+  }
 }
 
 /**
@@ -92,13 +96,50 @@ function opencalais_schema() {
     'primary key' => array('tid'),
   );
   
+  $schema['opencalais_term_node'] = array(
+    'description' => 'Holds the association between a retrieved OpenCalais term and a Node',
+    'fields' => array(
+      'tid' => array(
+        'type' => 'int', 
+        'unsigned' => TRUE, 
+        'not null' => TRUE, 
+        'default' => 0,
+        'description' => t('The term identifier')
+      ),
+      'nid' => array(
+        'type' => 'int', 
+        'unsigned' => TRUE, 
+        'not null' => TRUE, 
+        'default' => 0,
+        'description' => t('The node for this term')
+      ),
+      'relevance' => array(
+        'type' => 'numeric', 
+        'size' => 'normal', 
+        'not null' => TRUE, 
+        'default' => 0.0, 
+        'precision' => 5, 
+        'scale' => 3,
+        'description' => t('The relevence score from OpenCalais for this term/node combination')
+        ),
+    ),
+    'indexes' => array(
+      'tid'    => array('tid'),
+      'nid'    => array('nid'),
+    ),
+    'primary key' => array('tid', 'nid'),
+  );
+  
   return $schema;
 }
  
 function _opencalais_update_7000() {
   // Migrate all data from old tables to new tables
 
+  // Migrate configuration to presets
+  
   // Migrate permissions
+  
+  
 }
- 
- 
+

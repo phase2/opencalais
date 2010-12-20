@@ -26,7 +26,7 @@ function opencalais_menu() {
   $items = array();
 
 
-  $items['admin/config/calais/calais-tagging'] = array(
+  $items['admin/config/opencalais/tagging'] = array(
     'title' => 'OpenCalais Tagging Settings',
     'description' => 'Configure Entity Tagging',
     'page callback' => 'drupal_get_form',
@@ -103,6 +103,20 @@ function opencalais_access($node) {
 }
 
 /**
+ * Implements hook_theme().
+ */
+function opencalais_theme($existing, $type, $theme, $path) {
+  return array(
+    'opencalais_suggestions' => array(
+      'variables' => array('type' => NULL, 'field_name' => NULL, 'suggestions' => NULL),
+      'path' => "$path/theme",
+      'template' => 'opencalais_suggestions',
+    ),
+  );
+}
+
+
+/**
  * Implements hook_entity_info().
  */
 function opencalais_entity_info() {
@@ -145,46 +159,278 @@ function opencalais_entity_info() {
   return $return;
 }
 
+/**
+ *
+ */
 function opencalais_node_insert($node) {
   opencalais_tag($node);
 }
 
+/**
+ *
+ */
 function opencalais_node_update($node) {
   opencalais_tag($node);
 }
 
+/**
+ *
+ */
+function opencalais_node_delete($node) {
+  db_delete('opencalais_term_node')
+            ->condition('nid', $node->nid)
+            ->execute();
+}
+
+/**
+ *
+ */
 function opencalais_tag($node) {
+
+  // Add the term
+  $guid = uniqid();
   $data = array(
-    'name' => 'Mr. '. $node->title,
+    'name' => 'Mr. '. $node->title . ' ' . $guid,
     'type' => 'Person',
     'vocabulary' => 'tags',
-    'guid' => uniqid(),    
+    'guid' => $guid,    
   );
   $term = new Entity($data, 'opencalais_term');
   $term->save();
-  dpm($term);
 
+  // Relate it to the node
+  db_insert('opencalais_term_node')
+            ->fields(array('tid', 'nid', 'relevance'))
+            ->values(array($term->tid, $node->nid, 0.5))
+            ->execute();  
 }
 
+/**
+ *
+ */
 function opencalais_tag_form($node) {
-  $terms = entity_load('opencalais_term');
+  $tids = db_select('opencalais_term_node', 'tn')
+                    ->fields('tn', array('tid'))
+                    ->condition('nid', $node->nid)
+                    ->execute()
+                    ->fetchCol();
+
+  $terms = entity_load('opencalais_term', $tids);
   
-  $build = array(
-    '#theme' => 'table',
-    '#header' => array('ID', 'Name', 'Type', 'Vocab', 'GUID'),
-    '#empty' => t('No tags available.'),
-  );
   $rows = array();
   foreach ($terms as $tid => $term) {
     $rows[] = array($term->tid, $term->name, $term->type, $term->vocabulary, $term->guid);
   }
-  $build['#rows'] = $rows;
+
+  $build = array(
+    '#theme' => 'table',
+    '#header' => array('ID', 'Name', 'Type', 'Vocab', 'GUID'),
+    '#rows' => $rows,
+    '#empty' => t('No tags available.'),
+  );
+
   return $build;
 }
 
 
+/**
+ * Implements hook_form_BASE_FORM_ID_alter().
+ */
+function opencalais_form_node_form_alter(&$form, &$form_state, $form_id) {  
+  global $language;
+  dpm($language, "Language");
+  $node = $form['#node'];
+  $fields = opencalais_get_opencalais_tag_fields($form, 'node', $node->type);
+
+  foreach ($fields as $opencalais_type => $field_name) {
+    // Load suggestions
+    $suggestions = opencalais_get_suggestions($node, $opencalais_type);
+    $themed_suggestions = theme('opencalais_suggestions', array('type' => $opencalais_type, 'field_name' => $field_name, 'suggestions' => $suggestions)); 
+    $form[$field_name]['#suffix'] = "<div id='{$field_name}_suggestions'>{$themed_suggestions}</div>";
+  }
+
+  $form['suggest_tags'] = array(
+    '#type' => 'submit', 
+    '#value' => t('Suggest Tags'), 
+    '#submit' => array('opencalais_suggest_tags_submit'),     
+    '#ajax' => array(
+      'callback' => 'opencalais_suggest_tags_callback',  
+      'effect' => 'fade',
+    ),
+    '#attached' => array(
+      'js' => array(drupal_get_path('module', 'opencalais') . '/theme/opencalais.node.js'),
+      'css' => array(drupal_get_path('module', 'opencalais') . '/theme/opencalais.node.css'),
+    )
+  );
+
+}
 
 
+/**
+ * AJAX Callback to get OpenCalais tag suggestions for an Entity.
+ */
+function opencalais_get_opencalais_tag_fields($form, $entity, $bundle) {
+  $fields = array();
+  $entities = opencalais_get_all_entities();
+  $instances = field_info_instances($entity, $bundle);
+  foreach ($instances as $field_name => $instance) {
+    if ($instance['widget']['module'] == 'taxonomy') {
+      $field = field_info_field($field_name);
+      $opencalais_type = $field['settings']['allowed_values'][0]['vocabulary'];    
+      if (in_array($opencalais_type, $entities)) {
+        $fields[$opencalais_type] = $field_name;
+      }
+    }
+  }
+
+  dpm($form, "Form");
+  dpm($entities, "Entities");
+  dpm($instances, "Field Instance Info");
+  dpm($fields, "Fields");
+  return $fields;
+}
+
+
+/**
+ * AJAX Callback to get OpenCalais tag suggestions for an Entity.
+ */
+function opencalais_suggest_tags_callback($form, &$form_state) {
+  
+  $node = $form['#node'];  
+  $fields = opencalais_get_opencalais_tag_fields($form, 'node', $node->type);
+  
+  // Load suggestions  
+  $commands = array();
+  foreach ($fields as $opencalais_type => $field_name) {
+    $suggestions = opencalais_get_suggestions($node, $opencalais_type);
+    $themed_suggestions = theme('opencalais_suggestions', array('type' => $opencalais_type, 'field_name' => $field_name, 'suggestions' => $suggestions)); 
+    $commands[] = ajax_command_replace("#{$field_name}_suggestions", $themed_suggestions . ' suggested @ ' . date(DATE_RFC822));        
+  }
+    
+  return array('#type' => 'ajax', '#commands' => $commands);
+}
+
+/**
+ * Gracefully handle JS degredation by providing a multi-step form implementation
+ */
+function opencalais_suggest_tags_submit($form, &$form_state) {
+  dpm('Implement opencalais_suggest_tags_submit callback');
+}
+
+/**
+ *
+ */
+function opencalais_get_suggestions($node, $opencalais_type = NULL) {
+  $suggestions = array(
+    'City' => array(
+      'City One' => 0.3, 
+      'City Two' => 0.7,
+    ),
+    'ProvinceOrState' => array(
+      'State One' => 0.5, 
+      'State Two' => 0.9,
+    ),
+  );
+  return isset($opencalais_type) ? $suggestions[$opencalais_type] : $suggestions;
+}
+
+/**
+ * Create a new vocabulary with the OpenCalais key as the machine name.
+ */
+function opencalais_create_vocabulary($entity) {
+  if (!taxonomy_vocabulary_machine_name_load($entity)) {
+    $readable = opencalais_api_make_readable($entity);
+    $vocabulary = (object) array(
+      'name' => $readable,
+      'description' => t('Tags sourced from OpenCalais about @name.', array('@name' => $readable)),
+      'machine_name' => $entity,
+      'module' => 'opencalais',
+    );
+    taxonomy_vocabulary_save($vocabulary);
+  }
+}
+
+/**
+ * Get a list of the entities that OpenCalais API defines:
+ *    http://d.opencalais.com/1/type/em/e/.html
+ *
+ * @return array of OpenCalais entities, use local defaults if they cannot be retrieved remotely
+ */
+function opencalais_get_all_entities() {
+  $entities = &drupal_static(__FUNCTION__);
+  if (!empty($entities)) {
+    return $entities;
+  }
+  
+  $entities = cache_get('opencalais_entities');
+  if ($entities) {
+    return $entities->data;
+  }
+
+  // Try to load the entities automagically from opencalais
+  $entities = array();
+  $response = drupal_http_request('http://d.opencalais.com/1/type/em/e/.html');
+  if (!isset($response->error)) {
+    $cleaned = preg_replace('/<(link|META)(.*)>/', '', $response->data);
+    $doc = simplexml_load_string($cleaned);
+    $spans = $doc->xpath("//span[@rtype='entity']");
+    foreach ($spans as $span) {
+      $entities[] = (string)$span['label'];       
+    }
+  }
+  else {
+    // Defaults
+    $entities = array(
+      'Anniversary',
+      'City',
+      'Company',
+      'Continent',
+      'Country',
+      'Currency',
+      'EmailAddress',
+      'EntertainmentAwardEvent',
+      'Facility',
+      'FaxNumber',
+      'Holiday',
+      'IndustryTerm',
+      'MarketIndex',
+      'MedicalCondition',
+      'MedicalTreatment',
+      'Movie',
+      'MusicAlbum',
+      'MusicGroup',
+      'NaturalDisaster',
+      'NaturalFeature',
+      'OperatingSystem',
+      'Organization',
+      'Person',
+      'PhoneNumber',
+      'PoliticalEvent',
+      'Position',
+      'Product',
+      'ProgrammingLanguage',
+      'ProvinceOrState',
+      'PublishedMedium',
+      'RadioProgram',
+      'RadioStation',
+      'Region',
+      'SportsEvent',
+      'SportsGame',
+      'SportsLeague',
+      'Technology',
+      'TVShow',
+      'TVStation',
+      'URL'
+    );
+  }
+
+  // Special Reserved Vocabularies    
+  array_push($entities, 'SocialTags', 'CalaisDocumentCategory', 'EventsFacts');
+  sort($entities);
+  
+  cache_set('opencalais_entities', $entities, 'cache', time() + (60 * 60 * 24));  
+  return $entities;
+}
 
 
 

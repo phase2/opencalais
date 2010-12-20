@@ -58,7 +58,7 @@ class SemanticProxyService implements Calais {
     }
 
     $data = array(
-      '@apikey' => variable_get('calais_api_key', NULL),
+      '@apikey' => variable_get('opencalais_api_key', NULL),
       '@host' => $this->parameters['host'],
       '@format' => $this->parameters['format'],
       '@url' => $url,
@@ -102,12 +102,12 @@ class SemanticProxyService implements Calais {
       $msg = t('SemanticProxy processing error: @msg', array('@msg' => $errormsg));
       drupal_set_message($msg, 'error');
       $errors = array('@code' => $ret->code, '@error' => $ret->error, '@msg' => $errormsg);
-      watchdog('calais', 'SemanticProxy processing error: (@code - @error) @msg', $errors, WATCHDOG_ERROR);
+      watchdog('opencalais', 'SemanticProxy processing error: (@code - @error) @msg', $errors, WATCHDOG_ERROR);
     }
     else {
       $msg = t('Unexpected error processing SemanticProxy request.');
       drupal_set_message($msg, 'error');
-      watchdog('calais', $msg, WATCHDOG_ERROR);
+      watchdog('opencalais', $msg, WATCHDOG_ERROR);
     }
   }  
 }
