@@ -7,16 +7,7 @@
  * Implements hook_permission().
  */
 function opencalais_permission() {
-  return array(
-    'administer calais' => array(
-      'title' => t('Administer OpenCalais Tagging'),
-      'description' => t('Configure how Entities are tagged'),
-    ),
-    'access calais' => array(
-      'title' => t('Access OpenCalais Tags'),
-      'description' => t('View and modify tags on Entities'),
-    ),
-  );
+  return array();
 }
 
 /**
@@ -26,14 +17,14 @@ function opencalais_menu() {
   $items = array();
 
 
-  $items['admin/config/opencalais/tagging'] = array(
-    'title' => 'OpenCalais Tagging Settings',
+  $items['admin/config/content/opencalais/tagging'] = array(
+    'title' => 'Tagging',
     'description' => 'Configure Entity Tagging',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('opencalais_admin_settings'),
-    'access arguments' => array('administer calais'),
+    'page arguments' => array('opencalais_admin_general_settings'),
+    'access arguments' => array('administer opencalais'),
     'file' => 'opencalais.admin.inc',
-    'type' => MENU_NORMAL_ITEM,
+    'type' => MENU_LOCAL_TASK,
   );
 
 
@@ -245,23 +236,42 @@ function opencalais_form_node_form_alter(&$form, &$form_state, $form_id) {
   foreach ($fields as $opencalais_type => $field_name) {
     // Load suggestions
     $suggestions = opencalais_get_suggestions($node, $opencalais_type);
-    $themed_suggestions = theme('opencalais_suggestions', array('type' => $opencalais_type, 'field_name' => $field_name, 'suggestions' => $suggestions)); 
-    $form[$field_name]['#suffix'] = "<div id='{$field_name}_suggestions'>{$themed_suggestions}</div>";
+    $vars = array('type' => $opencalais_type, 'field_name' => $field_name, 'suggestions' => $suggestions);
+    $themed_suggestions = theme('opencalais_suggestions', $vars); 
+    $form[$field_name]['#suffix'] = $themed_suggestions;
   }
 
-  $form['suggest_tags'] = array(
+  $path = drupal_get_path('module', 'opencalais');
+  $form['actions']['suggest_tags'] = array(
     '#type' => 'submit', 
     '#value' => t('Suggest Tags'), 
+    '#weight' => 20,
     '#submit' => array('opencalais_suggest_tags_submit'),     
     '#ajax' => array(
       'callback' => 'opencalais_suggest_tags_callback',  
       'effect' => 'fade',
     ),
     '#attached' => array(
-      'js' => array(drupal_get_path('module', 'opencalais') . '/theme/opencalais.node.js'),
-      'css' => array(drupal_get_path('module', 'opencalais') . '/theme/opencalais.node.css'),
+      'js' => array($path . '/theme/opencalais.node.js'),
+      'css' => array($path . '/theme/opencalais.node.css'),
     )
   );
+  
+  // Should we collect them in vertical tabs?
+  if (variable_get('opencalais_tags_in_verticaltab', FALSE)) {
+    $form['opencalais']  = array(
+      '#type' => 'fieldset', 
+      '#title' => t('OpenCalais Tags'), 
+      '#collapsible' => TRUE, 
+      '#collapsed' => TRUE, 
+      '#group' => 'additional_settings', 
+      '#weight' => -2, 
+    );    
+    foreach ($fields as $field_name) {
+      $form['opencalais'][$field_name] = $form[$field_name];
+      unset($form[$field_name]);
+    }
+  }
 
 }
 
@@ -303,7 +313,8 @@ function opencalais_suggest_tags_callback($form, &$form_state) {
   $commands = array();
   foreach ($fields as $opencalais_type => $field_name) {
     $suggestions = opencalais_get_suggestions($node, $opencalais_type);
-    $themed_suggestions = theme('opencalais_suggestions', array('type' => $opencalais_type, 'field_name' => $field_name, 'suggestions' => $suggestions)); 
+    $vars = array('type' => $opencalais_type, 'field_name' => $field_name, 'suggestions' => $suggestions);
+    $themed_suggestions = theme('opencalais_suggestions', $vars); 
     $commands[] = ajax_command_replace("#{$field_name}_suggestions", $themed_suggestions . ' suggested @ ' . date(DATE_RFC822));        
   }
     

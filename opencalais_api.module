@@ -28,9 +28,9 @@ function opencalais_api_init() {
  */
 function opencalais_api_permission() {
   return array(
-    'administer opencalais api' => array(
-      'title' => t('Administer OpenCalais API'),
-      'description' => t('Configure API Key'),
+    'administer opencalais' => array(
+      'title' => t('Administer OpenCalais Configuration'),
+      'description' => t('Configure OpenCalais'),
     ),
   );
 }
@@ -41,22 +41,18 @@ function opencalais_api_permission() {
 function opencalais_api_menu() {
   $items = array();
   
-  $items['admin/config/opencalais'] = array(
+  $items['admin/config/content/opencalais'] = array(
     'title' => 'OpenCalais settings',
-    'description' => 'Configure options for OpenCalais integration',
+    'description' => 'Configure Settings for OpenCalais integration',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('opencalais_api_admin_settings'),
-    'access arguments' => array('administer opencalais api'),
-    'type' => MENU_NORMAL_ITEM,
+    'access arguments' => array('administer opencalais'),
   );
 
-  $items['admin/config/opencalais/api'] = array(
-    'title' => 'OpenCalais API Settings',
-    'description' => 'Configure API Key & Settings for OpenCalais integration',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('opencalais_api_admin_settings'),
-    'access arguments' => array('administer opencalais api'),
-    'type' => MENU_NORMAL_ITEM,
+  $items['admin/config/content/opencalais/api'] = array(
+    'title' => 'API',
+    'description' => 'Configure Settings for OpenCalais integration',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
   );
 
   return $items;
