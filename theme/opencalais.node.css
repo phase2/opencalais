@@ -1,7 +1,7 @@
 .suggestions { padding:2px; line-height:normal; }
 label.suggestion { display:inline; padding:2px 5px; margin:5px; }
 label.suggestion:hover { text-decoration:underline; }
-label.suggestion_selected { color:#006699; background:#ADD8E6; }
+label.suggestion_selected { color:#0074BD; background:#EEEEEE; }
 .suggestions label.score-1 { font-size:.8em;}
 .suggestions label.score-2 { font-size:1.2em;}
 .suggestions label.score-3 { font-size:1.6em;}

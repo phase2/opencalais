@@ -4,7 +4,7 @@
  */   
 $score_value = array(0 => t('Low'), 1 => t('Low'), 2 => t('Moderate'), 3 => t('High'));
 $id = $field_name . '_suggestions';
-$for = 'edit-' . strtr(drupal_strtolower($field_name), array(' ' => '-', '_' => '-', '[' => '-', ']' => ''));
+$for = 'edit-' . strtr(drupal_strtolower($field_name . '-' . $language), array(' ' => '-', '_' => '-', '[' => '-', ']' => ''));
 ?>
 <div id='<?php print $id; ?>' class='suggestions'>
   <?php print t('Tag Suggestions: '); ?>

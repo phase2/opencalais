@@ -99,7 +99,7 @@ function opencalais_access($node) {
 function opencalais_theme($existing, $type, $theme, $path) {
   return array(
     'opencalais_suggestions' => array(
-      'variables' => array('type' => NULL, 'field_name' => NULL, 'suggestions' => NULL),
+      'variables' => array('type' => NULL, 'field_name' => NULL, 'suggestions' => NULL, 'language' => LANGUAGE_NONE),
       'path' => "$path/theme",
       'template' => 'opencalais_suggestions',
     ),
@@ -236,7 +236,12 @@ function opencalais_form_node_form_alter(&$form, &$form_state, $form_id) {
   foreach ($fields as $opencalais_type => $field_name) {
     // Load suggestions
     $suggestions = opencalais_get_suggestions($node, $opencalais_type);
-    $vars = array('type' => $opencalais_type, 'field_name' => $field_name, 'suggestions' => $suggestions);
+    $vars = array(
+      'type' => $opencalais_type, 
+      'field_name' => $field_name, 
+      'suggestions' => $suggestions, 
+      'language' => $form['language']['#value']
+    );
     $themed_suggestions = theme('opencalais_suggestions', $vars); 
     $form[$field_name]['#suffix'] = $themed_suggestions;
   }
@@ -313,9 +318,16 @@ function opencalais_suggest_tags_callback($form, &$form_state) {
   $commands = array();
   foreach ($fields as $opencalais_type => $field_name) {
     $suggestions = opencalais_get_suggestions($node, $opencalais_type);
-    $vars = array('type' => $opencalais_type, 'field_name' => $field_name, 'suggestions' => $suggestions);
+    $vars = array(
+      'type' => $opencalais_type, 
+      'field_name' => $field_name, 
+      'suggestions' => $suggestions, 
+      'language' => $form['language']['#value']
+    );
     $themed_suggestions = theme('opencalais_suggestions', $vars); 
     $commands[] = ajax_command_replace("#{$field_name}_suggestions", $themed_suggestions . ' suggested @ ' . date(DATE_RFC822));        
+    
+    // TODO: If auto-apply, add a command to add/normalize the values in the term reference field
   }
     
   return array('#type' => 'ajax', '#commands' => $commands);
