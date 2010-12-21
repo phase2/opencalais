@@ -30,4 +30,14 @@ interface Calais {
    *    The processed Calais results. The raw RDF result is contained in the $this->rdf field.
    */
   public function analyzeXML($title, $body, $date);
+
+  /**
+   * Analyze the provided content, passing it to Calais in HTML format .
+   *
+   * @param $content  
+   *    The HTML content to process
+   * @return 
+   *    The processed Calais results. The raw RDF result is contained in the $this->rdf field.
+   */
+  public function analyzeHTML($content);
 }

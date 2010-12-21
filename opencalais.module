@@ -58,18 +58,6 @@ function opencalais_menu() {
     'type' => MENU_CALLBACK
   );
 */
-
-  $items['node/%node/opencalais'] = array(
-    'title' => 'Tags',
-    'page callback' => 'opencalais_tag_form',
-    'page arguments' => array(1),
-    'access callback' => 'opencalais_access',
-    'access arguments' => array(1),
-    'weight' => 2,
-    'file' => 'opencalais.pages.inc',
-    'type' => MENU_LOCAL_TASK
-  );
-
 /*
   $items['node/%/calais/rdf'] = array(
     'title' => 'Calais',
@@ -196,40 +184,11 @@ function opencalais_tag($node) {
             ->execute();  
 }
 
-/**
- *
- */
-function opencalais_tag_form($node) {
-  $tids = db_select('opencalais_term_node', 'tn')
-                    ->fields('tn', array('tid'))
-                    ->condition('nid', $node->nid)
-                    ->execute()
-                    ->fetchCol();
-
-  $terms = entity_load('opencalais_term', $tids);
-  
-  $rows = array();
-  foreach ($terms as $tid => $term) {
-    $rows[] = array($term->tid, $term->name, $term->type, $term->vocabulary, $term->guid);
-  }
-
-  $build = array(
-    '#theme' => 'table',
-    '#header' => array('ID', 'Name', 'Type', 'Vocab', 'GUID'),
-    '#rows' => $rows,
-    '#empty' => t('No tags available.'),
-  );
-
-  return $build;
-}
-
 
 /**
  * Implements hook_form_BASE_FORM_ID_alter().
  */
 function opencalais_form_node_form_alter(&$form, &$form_state, $form_id) {  
-  global $language;
-  dpm($language, "Language");
   $node = $form['#node'];
   $fields = opencalais_get_opencalais_tag_fields($form, 'node', $node->type);
 
@@ -311,7 +270,8 @@ function opencalais_get_opencalais_tag_fields($form, $entity, $bundle) {
  */
 function opencalais_suggest_tags_callback($form, &$form_state) {
   
-  $node = $form['#node'];  
+  $node = node_form_submit_build_node($form, $form_state);  
+  
   $fields = opencalais_get_opencalais_tag_fields($form, 'node', $node->type);
   
   // Load suggestions  
@@ -337,23 +297,54 @@ function opencalais_suggest_tags_callback($form, &$form_state) {
  * Gracefully handle JS degredation by providing a multi-step form implementation
  */
 function opencalais_suggest_tags_submit($form, &$form_state) {
+  $node = node_form_submit_build_node($form, $form_state);  
+  $suggestions = opencalais_get_suggestions($node);
+  dpm($suggestions, "Suggestions");
   dpm('Implement opencalais_suggest_tags_submit callback');
 }
 
 /**
  *
  */
-function opencalais_get_suggestions($node, $opencalais_type = NULL) {
-  $suggestions = array(
-    'City' => array(
-      'City One' => 0.3, 
-      'City Two' => 0.7,
-    ),
-    'ProvinceOrState' => array(
-      'State One' => 0.5, 
-      'State Two' => 0.9,
-    ),
-  );
+function opencalais_get_suggestions(&$node, $opencalais_type = NULL) {
+  $tag_cache = &drupal_static(__FUNCTION__);
+
+  if ($tag_cache && array_key_exists($node->ocid, $tag_cache)) {
+    $suggestions = $tag_cache[$node->ocid];    
+  }
+  else {
+    // Needed to support caching of unsaved nodes
+    if (empty($node->ocid)) {
+      $node->ocid = !empty($node->nid) ? $node->nid : uniqid();
+    }
+    
+    $elements = node_view($node);
+    //$body = strip_tags(drupal_render($elements));
+    $body = drupal_render($elements);
+    $date = format_date($node->created, 'custom', 'r');
+  
+    // Allow modification of the content sent to Calais
+    drupal_alter("opencalais_body", $body, $node);
+    
+    $opencalais = opencalais_api_get_service();
+    //$tags = $opencalais->analyzeXML($node->title, $body, $date);
+    $tags = $opencalais->analyzeHTML($body);
+    
+    dpm($tags, "Tags back from OpenCalais");
+  
+    $suggestions = array();    
+    foreach ($tags as $type => $metadata) {
+      $terms = array();
+      foreach ($metadata->terms as $guid => $term) {
+        $terms[$term->name] = (float)$term->relevance;
+      }  
+      $suggestions[$type] = $terms;
+    }   
+  }
+  dpm($suggestions, "Suggs on the inside");
+  dpm($opencalais_type, "OC Type");
+
+  $tag_cache[$node->ocid] = $suggestions;
   return isset($opencalais_type) ? $suggestions[$opencalais_type] : $suggestions;
 }
 

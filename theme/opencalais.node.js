@@ -7,6 +7,7 @@
 Drupal.behaviors.opencalaisNodeEdit = {
   attach: function(context) {
   	$('label.suggestion', context).click(function() {
+  alert("attach for " + $(this).attr('for'));
   		var tags = $('#' + $(this).attr('for'));
   		var keyword = $(this).text();
   		

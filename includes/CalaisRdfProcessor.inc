@@ -263,7 +263,7 @@ class CalaisRdfProcessor {
       
     foreach ($keywords as &$entity) {
       if ($entity->has_guid($subject)) {
-        $uris = variable_get('opencalais_lookup_loduri', FALSE) ? self::lookup_linked_data_uris($guid) : array();
+        $uris = variable_get('opencalais_lookup_uri', FALSE) ? self::lookup_linked_data_uris($guid) : array();
         $entity->set_term_resolved_data($subject, $resolved_name, $guid, $type, $extra, $uris);      
       }
     }
