@@ -24,6 +24,60 @@ function opencalais_uninstall() {
  * Implements hook_schema().
  */
 function opencalais_schema() {
+  $schema['opencalais_preset'] = array(
+    'description' => 'Holds OpenCalais presets',
+    'export' => array(
+      'key' => 'name',
+      'identifier' => 'preset',                // Exports will be as $preset
+      'default hook' => 'default_opencalais_preset',  // Function hook name.
+      'api' => array(
+        'owner' => 'opencalais',
+        'api' => 'default_opencalais_presets',  // Base name for api include files.
+        'minimum_version' => 1,
+        'current_version' => 1,
+      ),
+    ),
+    'fields' => array(
+      'pid' => array(
+        'type' => 'serial', 
+        'unsigned' => TRUE, 
+        'not null' => TRUE,
+        'description' => 'Primary ID field for the table. Not used for anything except internal lookups.',
+        'no export' => TRUE, // Do not export database-only keys.
+      ),
+      'name' => array(
+        'type' => 'varchar', 
+        'length' => 255, 
+        'not null' => TRUE,
+        'description' => 'Unique ID for presets. Used to identify them programmatically.'
+      ),
+      'description' => array(
+        'type' => 'varchar',
+        'length' => '255',
+        'description' => 'A human readable name of a preset.',
+      ),
+      'send_calais_request' => array(
+        'type' => 'varchar',
+        'length' => '255',
+        'description' => 'Send Calais Request variable',
+      ),
+      'tag_content' => array(
+        'type' => 'varchar',
+        'length' => '255',
+        'description' => 'Tag Content',
+      ),
+      'tag_config' => array( // Serialized
+        'type' => 'blob',
+        'length' => 'longblob',
+        'description' => 'Tag Config',
+        'serialize' => TRUE,
+      ),
+    ),    
+    'primary key' => array('pid'),
+    'unique keys' => array(
+      'name' => array('name'),
+    ),
+  );
   $schema['opencalais_term'] = array(
     'description' => 'Holds retrieved OpenCalais terms and the Vocabulary to which they are associated',
     'fields' => array(
