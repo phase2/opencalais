@@ -513,12 +513,13 @@ function opencalais_default_opencalais_preset() {
      /*
  $entities = opencalais_get_all_entities();
       sort($entities);
+      
       foreach ($entities as $category) {
         $preset->$category->status = 1;
         $preset->$category->relevancy = 0;
+        $preset->category = $category;
       }
 */
-      
       
       $presets[$preset->name]= $preset;
     }
@@ -531,10 +532,9 @@ function opencalais_default_opencalais_preset() {
  * Renders the query form.
  */
 function opencalais_preset_form(&$form, &$form_state) {
- $preset = $form_state['item'];
+ $preset           = $form_state['item'];
  $category_default = unserialize($preset->tag_config);
  
-//print_r($category_default);
  $request_options = array(
     CALAIS_REQUEST_NO             => t('NEVER: not processed by Calais'),
     CALAIS_REQUEST_MANUAL         => t("MANUAL: initiate requests from the 'Calais' tab"),
@@ -598,15 +598,21 @@ $form['general']["opencalais_threshold_{$key}"] = array(
   );
 //$entities=array('activity');
   foreach ($entities as $category) {
-     $form['categories'][$category] = array(
-    '#type' => 'fieldset',
-    '#title' => t($category),
-    '#collapsible' => array(TRUE),
-    '#collapsed' => array(TRUE),
-    '#nodetype' => $key,
-    '#theme' => 'calais_nodetype_settings',
-  );
- $form['categories']['#tree'] =TRUE;
+   if(!isset($category_default[$category]['relevancy'])) {
+     $category_default[$category]['relevancy'] = 1;
+   }
+   if(!isset($category_default[$category]['status'])) {
+     $category_default[$category]['status'] = 1;
+   }
+    $form['categories'][$category] = array(
+      '#type' => 'fieldset',
+      '#title' => t($category),
+      '#collapsible' => array(TRUE),
+      '#collapsed' => array(TRUE),
+      '#nodetype' => $key,
+      '#theme' => 'calais_nodetype_settings',
+    );
+    $form['categories']['#tree'] =TRUE;
     $form['categories'][$category]['status']= array(
       '#type' => 'checkbox',
       '#title' => $category, //t('Which tag categories (entities) do you wish to use?'),
