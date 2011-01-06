@@ -104,6 +104,10 @@ function opencalais_theme($existing, $type, $theme, $path) {
       'path' => "$path/theme",
       'template' => 'opencalais_suggestions',
     ),
+     'opencalais_theme' => array(
+       'arguments' => array('form' => NULL),
+       'render element' => 'form',
+    ),
   );
 }
 
@@ -662,4 +666,16 @@ die();
 function opencalais_preset_form_submit(&$form, &$form_state) {
 $form_state['item']->tag_config = serialize($form_state['values']['categories']);
 //$form_state['item']->description = $form_state['values']['description'];
+}
+
+function theme_opencalais_preset($form) {
+  $output = '';
+  $output .= drupal_render($form['name']);
+  $output .= '<div class="foo">';
+  $output .= drupal_render($form['access']);
+  $output .= '<div class="bar">';
+  $output .= drupal_render($form['details']);
+  $output .= '</div></div>';
+  $output .= drupal_render($form);
+  return $output;
 }
