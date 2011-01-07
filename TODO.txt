@@ -1,6 +1,12 @@
 For D7
- - Conditionally add fields to terms based on vocab/bundle
+ - Conditionally add fields to terms based on vocab/bundle (start simple)
+   - Lat/Lon to Geo
+   - Ticker to Company
+   - Should this be dependent on the service used? (OpenCalais, Amplify, etc)?
  - Add RDF Mappings for new fields
- - Generate RDF from calais data/taxonomy terms/mappings (removed need for local storage)
+ - Generate RDF from calais data/taxonomy terms/mappings 
+   - Removes need for local storage or RDF
  - Config docRDFaccessible in Calais call for link to full doc if desired.
    + http://www.opencalais.com/documentation/calais-web-service-api/forming-api-calls/input-parameters
+
+ - Use jQuery Slider for threshold setting

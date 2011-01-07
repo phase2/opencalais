@@ -5,11 +5,12 @@
 $plugin = array(
   'schema' => 'opencalais_preset',
   'access' => 'administer opencalais',
+  
+  // Will default to admin/structure/[menu item]
   'menu' => array(
-    'menu prefix' => 'admin/config/content/opencalais',
-    'menu item' => 'presets', 
-    'menu title' => 'Open Calais Preset', 
-    'menu description' => 'Administer OpenCalais',
+    'menu item' => 'opencalais-presets', 
+    'menu title' => 'OpenCalais Presets', 
+    'menu description' => 'Administer OpenCalais Configuration for Entities',
   ),
 
   'title singular' => t('opencalais preset'),

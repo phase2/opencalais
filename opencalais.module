@@ -2,22 +2,45 @@
 /**
  * @file opencalais.module
  */
- // Request constants
- define('CALAIS_REQUEST_NO',             0);
- define('CALAIS_REQUEST_MANUAL',         1);
- define('CALAIS_REQUEST_AUTO',           2);
- define('CALAIS_REQUEST_AUTO_PUBLISHED', 3);
+
+// Request constants
+define('CALAIS_REQUEST_NO',             0);
+define('CALAIS_REQUEST_MANUAL',         1);
+define('CALAIS_REQUEST_AUTO',           2);
+define('CALAIS_REQUEST_AUTO_PUBLISHED', 3);
  
- // Constants for how to apply tags once retrieved
- define('CALAIS_PROCESS_AUTO',       'AUTO');
- define('CALAIS_PROCESS_AUTO_ONCE',  'AUTO_ONCE');
- define('CALAIS_PROCESS_MANUAL',     'MANUAL');
+// Constants for how to apply tags once retrieved
+define('CALAIS_PROCESS_MANUAL', 0);
+define('CALAIS_PROCESS_AUTO',   1);
  
- define('CALAIS_RDF_REPOSITORY',     'calais_node');
- define('CALAIS_WATCHDOG',           'Calais');
+define('CALAIS_WATCHDOG', 'OpenCalais');
  
- // Node Build Mode Contant
- define('CALAIS_PROCESSED', TRUE);
+// Node Build Mode Contant
+define('CALAIS_PROCESSED', TRUE);
+ 
+/**
+ * Implementation of hook_ctools_plugin_api().
+ *
+ * Tell ctools that we support the default_opencalais_presets API.
+ */
+function opencalais_ctools_plugin_api($owner, $api) {
+  if ($owner == 'opencalais' && $api == 'opencalais_default_presets') {
+    return array('version' => 1);
+  }
+}
+
+/**
+ 	* Implementation of hook_ctools_plugin_directory().
+ 	*
+ 	* Defines where to look for ctools plugin implementations
+ 	*/
+function opencalais_ctools_plugin_directory($module, $plugin) {
+ 	if ($module == 'ctools' && $plugin == 'export_ui') {
+   	return 'plugins/export_ui';
+ 	}
+} 
+
+ 
  
 /**
  * Implements hook_permission().
@@ -86,27 +109,20 @@ function opencalais_menu() {
 }
 
 /**
- * Implements hook_access().
- */
-function opencalais_access($node) {
-  return TRUE;
-  // If the user can access and tagging is enabled for this node
-  //return user_access('access calais') && calais_get_request_type($node) != CALAIS_REQUEST_NO;
-}
-
-/**
  * Implements hook_theme().
  */
 function opencalais_theme($existing, $type, $theme, $path) {
+  $path = drupal_get_path('module', 'opencalais');
   return array(
     'opencalais_suggestions' => array(
       'variables' => array('type' => NULL, 'field_name' => NULL, 'suggestions' => NULL, 'language' => LANGUAGE_NONE),
       'path' => "$path/theme",
       'template' => 'opencalais_suggestions',
     ),
-     'opencalais_theme' => array(
-       'arguments' => array('form' => NULL),
-       'render element' => 'form',
+    'opencalais_preset_form' => array(
+      'render element' => 'form',
+      'path' => "$path/theme",
+      'file' => 'theme.inc',
     ),
   );
 }
@@ -156,21 +172,21 @@ function opencalais_entity_info() {
 }
 
 /**
- *
+ * Implements hook_node_insert().
  */
 function opencalais_node_insert($node) {
   opencalais_tag($node);
 }
 
 /**
- *
+ * Implements hook_node_update().
  */
 function opencalais_node_update($node) {
   opencalais_tag($node);
 }
 
 /**
- *
+ * Implements hook_node_delete().
  */
 function opencalais_node_delete($node) {
   db_delete('opencalais_term_node')
@@ -179,7 +195,7 @@ function opencalais_node_delete($node) {
 }
 
 /**
- *
+ * Tag the given node content with OpenCalais
  */
 function opencalais_tag($node) {
 
@@ -463,35 +479,144 @@ function opencalais_get_all_entities() {
   return $entities;
 }
 
-
 /**
-* Implementation of hook_ctools_plugin_api().
-*
-* Tell CTools that we support the default_opencalais_presets API.
-*/
-function opencalais_ctools_plugin_api($owner, $api) {
-  if ($owner == 'opencalais' && $api == 'default_opencalais_presets') {
-    return array('version' => 1);
+ * Renders the query form.
+ */
+function opencalais_preset_form(&$form, &$form_state) {
+  $item = $form_state['item'];
+  $form['#theme'] = 'opencalais_preset_form';
+
+  // We manage the preset name
+  unset($form['info']['name']);
+
+  $form['info']['title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Title'),
+    '#description' => t('The human readable name for this preset'),
+    '#default_value' => $item->title,
+  );
+  $form['info']['description'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Description'),
+    '#description' => t('The description for this preset.'),
+    '#default_value' => $item->description,
+  );  
+  $form['info']['entity'] = array(
+    '#type' => 'value',
+    '#value' => 'node',
+  );
+  
+  if ($form_state['op'] == 'edit') {
+    $form['info']['config']['identifier'] = array(
+      '#type' => 'value',
+      '#value' => $identifier,
+    );
+    $form['info']['bundle'] = array(
+      '#type' => 'item',
+      '#title' => t('Content Type'),
+      '#value' => $item->bundle,
+      '#description' => t('The content type to tag.'),
+    );
+    //TODO: Allow them to ajaxy change the type
   }
+  else {
+    node_types_rebuild();
+    $node_types = node_type_get_names();
+    // TODO: Remove types that already have presets???
+    $form['info']['bundle'] = array(
+      '#type' => 'select',
+      '#title' => t('Content Type'),
+      '#default_value' => $item->bundle,
+      '#options' => $node_types,
+      '#description' => t('The content type to tag.'),
+    );
+  }
+
+  /* 
+  $request_options = array(
+    CALAIS_REQUEST_NO             => t('NEVER: not processed by Calais'),
+    CALAIS_REQUEST_MANUAL         => t("MANUAL: initiate requests from the 'Calais' tab"),
+    CALAIS_REQUEST_AUTO           => t('AUTOMATIC: every time you save content, published or unpublished'),
+    CALAIS_REQUEST_AUTO_PUBLISHED => t('AUTOMATIC PUBLISHED: every time you save published content'),
+  );
+  $form['general']['request'] = array(
+    '#type' => 'radios',
+    '#title' => t('Send Calais request'),
+    '#default_value' => $preset->,
+    '#options' => $request_options,
+  );
+  */
+  $process_options = array(
+    CALAIS_PROCESS_MANUAL => t('NEVER: suggest the terms, but let me tag the content'),
+    CALAIS_PROCESS_AUTO   => t('ALWAYS: tag the content automatically'),
+  );
+  $form['info']['process'] = array(
+    '#type' => 'radios',
+    '#title' => t('Tag content'),
+    '#default_value' => $item->process,
+    '#options' => $process_options,
+  );
+  
+  $form['info']['config'] = array('#tree' => TRUE);
+  $form['info']['config']['entities'] = array('#tree' => TRUE);
+
+  $entities = opencalais_get_all_entities();
+  sort($entities);
+  
+  $entity_defaults = isset($item->config['entities']) ? $item->config['entities'] : array('enabled' => TRUE, 'threshold' => 0.0);
+  
+  foreach ($entities as $entity) {
+    $defaults = isset($entity_defaults[$entity]) ? $entity_defaults[$entity] : $entity_defaults;
+  
+    $form['info']['config']['entities'][$entity]['enabled'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Enabled'),
+      '#default_value' => $defaults['enabled'],
+      '#description' => t('Should this content type be tagged with this category'),
+    );
+    $form['info']['config']['entities'][$entity]['threshold'] = array(
+      '#type' => 'textfield',
+      '#size' => 5,
+      '#title' => t('Minimum suggested tag relevancy'),
+      '#default_value' => $defaults['threshold'],
+      '#description' => t('Determine how relevant a term must be in order for Calais to suggest it for a particular node.  Based on a 0.00-1.00 scale, with 0.00 being least relevant (i.e. many terms appear).'),
+    );
+    // TODO: Allow mapping to different vocabularies?
+  }
+  
+  return $form;
 }
 
 /**
- 	* Implementation of hook_ctools_plugin_directory().
- 	*
- 	* Defines where to look for ctools plugin implementations
- 	*/
-function opencalais_ctools_plugin_directory($module, $plugin) {
- 	if ($module == 'ctools' && $plugin == 'export_ui') {
-   	return 'plugins/export_ui';
- 	}
-} 
+ * Validate the query form submission.
+ */
+function opencalais_preset_form_validate(&$form, &$form_state) {
+}
+
+/**
+ * Handle the form submission for ctool export_ui.
+ */
+function opencalais_preset_form_submit(&$form, &$form_state) {
+  $form_state['item']->name = $form_state['values']['entity'] . '-' . $form_state['values']['bundle'];
+  $form_state['item']->title = $form_state['values']['title'];
+  $form_state['item']->description = $form_state['values']['description'];
+  $form_state['item']->entity = $form_state['values']['entity'];
+  $form_state['item']->bundle = $form_state['values']['bindle'];
+  $form_state['item']->process = $form_state['values']['process'];
+  $form_state['item']->config = $form_state['values']['config'];
+}
+
+
+//====================================================================
+//======== Cruft to remove ===========================================
+//====================================================================
 
 /**
 * Implementation of hook_default_opencalais_preset().
 *
 * Provide a couple of default presets.
 */
-function opencalais_default_opencalais_preset() {
+function opencalais_opencalais_default_preset() {
 
   $presets = array();
 
@@ -531,151 +656,3 @@ function opencalais_default_opencalais_preset() {
   return $presets;  
 }
 
-
-/**
- * Renders the query form.
- */
-function opencalais_preset_form(&$form, &$form_state) {
- $preset           = $form_state['item'];
- $category_default = unserialize($preset->tag_config);
- 
- $request_options = array(
-    CALAIS_REQUEST_NO             => t('NEVER: not processed by Calais'),
-    CALAIS_REQUEST_MANUAL         => t("MANUAL: initiate requests from the 'Calais' tab"),
-    CALAIS_REQUEST_AUTO           => t('AUTOMATIC: every time you save content, published or unpublished'),
-    CALAIS_REQUEST_AUTO_PUBLISHED => t('AUTOMATIC PUBLISHED: every time you save published content'),
-  );
-  $process_options = array(
-    CALAIS_PROCESS_MANUAL    => t('NEVER: suggest the terms, but let me tag the content'),
-    CALAIS_PROCESS_AUTO_ONCE => t('ONCE: tag the content the first time I save'),
-    CALAIS_PROCESS_AUTO      => t('ALWAYS: tag the content on every save'),
-  );
-  $entities = opencalais_get_all_entities();
-  sort($entities);
-
-  //require_once('opencalais.admin.inc');
-  $preset = $form_state['item'];
-  $key = $preset->type;
-  $name = $preset->name;
-  $form['general'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('General settings'),
-    '#collapsible' => array(TRUE),
-    '#collapsed' => array(TRUE),
-    '#nodetype' => $key,
-    '#theme' => 'calais_nodetype_settings',
-  );
-  $form['general']["opencalais_node_request"] = array(
-    '#type' => 'radios',
-    '#parents' => array('opencalais_node_'. $key .'_request'),
-    '#title' => t('Send Calais request'),
-    '#default_value' => '',
-    '#options' => $request_options,
-    '#attributes' => array('class' => array("nodetype_toggle"), 'data' => $key),
-    );
-  $processing = variable_get("opencalais_node_process", CALAIS_PROCESS_MANUAL);
-  $form['general']["opencalais_node_process"] = array(
-    '#type' => 'radios',
-    '#parents' => array('opencalais_node_'. $key .'_process'),
-    '#title' => t('Tag content'),
-    '#default_value' => $processing,
-    '#options' => $process_options,
-  );
-  
-  #  _opencalais_build_semanticproxy_config($form, $nt);  
-  /*
-$form['general']["opencalais_threshold_{$key}"] = array(
-    '#type' => 'textfield',
-    '#size' => 5,
-    '#title' => t('Minimum suggested tag relevancy'),
-    '#default_value' => '',
-    '#description' => t('Determine how relevant a term must be in order for Calais to suggest it for a particular node.  Based on a 0.00-1.00 scale, with 0.00 being least relevant (i.e. many terms appear).'),
-  );
-*/
-  $form['categories'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Categories'),
-    '#collapsible' => array(TRUE),
-    '#collapsed' => array(TRUE),
-    '#nodetype' => $key,
-    '#theme' => 'calais_nodetype_settings',
-  );
-//$entities=array('activity');
-  foreach ($entities as $category) {
-   if(!isset($category_default[$category]['relevancy'])) {
-     $category_default[$category]['relevancy'] = 1;
-   }
-   if(!isset($category_default[$category]['status'])) {
-     $category_default[$category]['status'] = 1;
-   }
-    $form['categories'][$category] = array(
-      '#type' => 'fieldset',
-      '#title' => t($category),
-      '#collapsible' => array(TRUE),
-      '#collapsed' => array(TRUE),
-      '#nodetype' => $key,
-      '#theme' => 'calais_nodetype_settings',
-    );
-    $form['categories']['#tree'] =TRUE;
-    $form['categories'][$category]['status']= array(
-      '#type' => 'checkbox',
-      '#title' => $category, //t('Which tag categories (entities) do you wish to use?'),
-      '#default_value' => $category_default[$category]['status'],
-      '#description' => '', // t('Choose which vocabularies should be included for term suggestions.'),
-     // '#return_value' => $category,
-      '#tree' => TRUE,
-    );
-    
-    $form['categories'][$category]['relevancy']= array(
-      '#type' => 'textfield',
-      '#title' => t('Tag Relevancy'),
-      '#default_value' =>  $category_default[$category]['relevancy'],
-      '#size' => 5,
-      '#description' => t('Choose which vocabularies should be included for term suggestions.'),
-    );
-  }
-  
-  $form['info']['config']['#tree'] =FALSE;
-  
-  return $form;
-}
-
-/**
- * Validate the query form submission.
- */
-function opencalais_preset_form_validate(&$form, &$form_state) {
-
-/*
-print '<pre>';
-print_r($form_state['values']);
-print '<br /><br />';
-$category_serial = serialize($form_state['values']['categories']);
-print $category_serial;
-print '<br /><br />';
-$category_unserial = unserialize($category_serial);
-print_r($category_unserial);
-print '</pre>';
-die();
-*/
-
-}
-
-/**
- * Handle the form submission for ctool export_ui.
- */
-function opencalais_preset_form_submit(&$form, &$form_state) {
-$form_state['item']->tag_config = serialize($form_state['values']['categories']);
-//$form_state['item']->description = $form_state['values']['description'];
-}
-
-function theme_opencalais_preset($form) {
-  $output = '';
-  $output .= drupal_render($form['name']);
-  $output .= '<div class="foo">';
-  $output .= drupal_render($form['access']);
-  $output .= '<div class="bar">';
-  $output .= drupal_render($form['details']);
-  $output .= '</div></div>';
-  $output .= drupal_render($form);
-  return $output;
-}

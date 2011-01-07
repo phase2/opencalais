@@ -25,14 +25,14 @@ function opencalais_uninstall() {
  */
 function opencalais_schema() {
   $schema['opencalais_preset'] = array(
-    'description' => 'Holds OpenCalais presets',
+    'description' => 'OpenCalais presets',
     'export' => array(
       'key' => 'name',
       'identifier' => 'preset',                // Exports will be as $preset
-      'default hook' => 'default_opencalais_preset',  // Function hook name.
+      'default hook' => 'opencalais_default_preset',  // Function hook name.
       'api' => array(
         'owner' => 'opencalais',
-        'api' => 'default_opencalais_presets',  // Base name for api include files.
+        'api' => 'opencalais_default_presets',  // Base name for api include files.
         'minimum_version' => 1,
         'current_version' => 1,
       ),
@@ -51,26 +51,34 @@ function opencalais_schema() {
         'not null' => TRUE,
         'description' => 'Unique ID for presets. Used to identify them programmatically.'
       ),
+      'title' => array(
+        'type' => 'varchar', 
+        'length' => 255, 
+        'not null' => TRUE,
+        'description' => 'Unique ID for presets. Used to identify them programmatically.'
+      ),
       'description' => array(
         'type' => 'varchar',
         'length' => '255',
         'description' => 'A human readable name of a preset.',
       ),
-      'send_calais_request' => array(
+      'entity' => array(
         'type' => 'varchar',
         'length' => '255',
-        'description' => 'Send Calais Request variable',
+        'description' => 'Entity type',
       ),
-      'tag_content' => array(
+      'bundle' => array(
         'type' => 'varchar',
         'length' => '255',
-        'description' => 'Tag Content',
+        'description' => 'Bundle',
       ),
-      'tag_config' => array( // Serialized
-        'type' => 'blob',
-        'length' => 'longblob',
-        'description' => 'Tag Config',
-        'serialize' => TRUE,
+      'process' => array(
+        'type' => 'int',
+        'description' => 'How to process the tags for the entity',
+      ),
+      'config' => array(
+        'type' => 'text',
+        'serialize' => TRUE,      
       ),
     ),    
     'primary key' => array('pid'),
