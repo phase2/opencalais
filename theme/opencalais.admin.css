@@ -1,0 +1,10 @@
+.ui-corner-all {
+  border-bottom-left-radius: 4px 4px;
+  border-bottom-right-radius: 4px 4px;
+  border-top-left-radius: 4px 4px;
+  border-top-right-radius: 4px 4px;
+}
+
+input.threshold_slider {
+  text-align: center;
+}

@@ -571,6 +571,7 @@ function opencalais_preset_form(&$form, &$form_state) {
     $form['info']['config']['entities'][$entity]['enabled'] = array(
       '#type' => 'checkbox',
       '#title' => t('Enabled'),
+      '#title_display' => 'invisible',
       '#default_value' => $defaults['enabled'],
       '#description' => t('Should this content type be tagged with this category'),
     );
@@ -578,8 +579,10 @@ function opencalais_preset_form(&$form, &$form_state) {
       '#type' => 'textfield',
       '#size' => 5,
       '#title' => t('Minimum suggested tag relevancy'),
+      '#title_display' => 'invisible',
       '#default_value' => $defaults['threshold'],
       '#description' => t('Determine how relevant a term must be in order for Calais to suggest it for a particular node.  Based on a 0.00-1.00 scale, with 0.00 being least relevant (i.e. many terms appear).'),
+      '#attributes' => array('class' => array('threshold_slider')),
     );
     // TODO: Allow mapping to different vocabularies?
   }
