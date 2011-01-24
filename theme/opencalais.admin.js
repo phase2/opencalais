@@ -7,7 +7,7 @@
 Drupal.behaviors.opencalaisEntityConfig = {
   attach: function (context) {
     $(".threshold_slider", context).each(function() {
-      
+      $(this).parent().addClass('slider_holder');
       $(this).hide();
  
       var threshold = $(this);

@@ -8,3 +8,23 @@
 input.threshold_slider {
   text-align: center;
 }
+
+div.ui-slider {
+  width: 86%;
+  display: inline-block;
+  margin-top: 3px;
+  margin-right: 7px; //this is to prevent the slider thing from being overtop of text
+}
+
+.slider_label {
+  display: inline-block;
+  text-align: center;
+  width: 10%;
+  min-width: 25px;
+}
+
+div.slider_holder {
+  clear: both;
+  display: block;
+  text-align: center;
+}

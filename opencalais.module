@@ -484,6 +484,9 @@ function opencalais_get_all_entities() {
  */
 function opencalais_preset_form(&$form, &$form_state) {
   $item = $form_state['item'];
+  //if(!is_object($item)){ $item = new StdClass(); }
+  
+  //print '<pre>'; print_r($item); print '</pre>'; die();
   $form['#theme'] = 'opencalais_preset_form';
 
   // We manage the preset name
@@ -507,22 +510,35 @@ function opencalais_preset_form(&$form, &$form_state) {
   );
   
   if ($form_state['op'] == 'edit') {
-    $form['info']['config']['identifier'] = array(
-      '#type' => 'value',
-      '#value' => $identifier,
-    );
+    /*
+     * $form['info']['config']['identifier'] = array(
+     * '#type' => 'value',
+     * '#value' => $item->identifier,
+     * );
+     */
+     
+     
     $form['info']['bundle'] = array(
+      '#type' => 'value',
+      '#value' => $item->bundle,
+    ); 
+    //apparently items can't store data - this data is lost 
+    $form['info']['bundle_view'] = array(
       '#type' => 'item',
       '#title' => t('Content Type'),
-      '#value' => $item->bundle,
+      '#markup' => '<p>' . $item->bundle . '</p>',
       '#description' => t('The content type to tag.'),
     );
+    
+    
     //TODO: Allow them to ajaxy change the type
   }
   else {
     node_types_rebuild();
     $node_types = node_type_get_names();
     // TODO: Remove types that already have presets???
+    
+    
     $form['info']['bundle'] = array(
       '#type' => 'select',
       '#title' => t('Content Type'),
@@ -600,11 +616,12 @@ function opencalais_preset_form_validate(&$form, &$form_state) {
  * Handle the form submission for ctool export_ui.
  */
 function opencalais_preset_form_submit(&$form, &$form_state) {
+  
   $form_state['item']->name = $form_state['values']['entity'] . '-' . $form_state['values']['bundle'];
   $form_state['item']->title = $form_state['values']['title'];
   $form_state['item']->description = $form_state['values']['description'];
   $form_state['item']->entity = $form_state['values']['entity'];
-  $form_state['item']->bundle = $form_state['values']['bindle'];
+  $form_state['item']->bundle = $form_state['values']['bundle'];
   $form_state['item']->process = $form_state['values']['process'];
   $form_state['item']->config = $form_state['values']['config'];
 }
@@ -634,9 +651,10 @@ function opencalais_opencalais_default_preset() {
       $preset = new stdClass;
       $preset->disabled = FALSE;
       $preset->api_version = 1;
-      $preset->type = $key;
-      
-      $preset->name = $name;
+      $preset->bundle = $key;
+      $preset->process = 0;
+      $preset->title = $name;
+      $preset->name = 'opencalias_'.$key;
       $preset->description = '';
       $preset->send_calais_request = // CALAIS_REQUEST_NO;
       $preset->tag_content = CALAIS_PROCESS_MANUAL;
@@ -659,3 +677,16 @@ function opencalais_opencalais_default_preset() {
   return $presets;  
 }
 
+function opencalais_get_preset($preset_name){
+  $value = variable_get($preset_name, new stdClass());
+  print '<pre>'; print_r($value); print '</pre>'; die();
+}
+
+
+function opencalais_get_presets(){
+  $node_types = _node_types_build()->types;
+  
+  for($node_types as $type){
+    if($preset = variable_get('node
+  }
+}
