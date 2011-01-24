@@ -684,9 +684,4 @@ function opencalais_get_preset($preset_name){
 
 
 function opencalais_get_presets(){
-  $node_types = _node_types_build()->types;
-  
-  for($node_types as $type){
-    if($preset = variable_get('node
   }
-}
