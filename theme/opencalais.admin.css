@@ -28,3 +28,7 @@ div.slider_holder {
   display: block;
   text-align: center;
 }
+
+#bundle-info {
+  padding: 5px;
+}
