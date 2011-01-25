@@ -526,26 +526,22 @@ function opencalais_preset_form(&$form, &$form_state) {
   else {
     node_types_rebuild();
     $node_types = node_type_get_names();
-    array_unshift($node_types, '');  //add an empty element to force them to 'select' a node type - thus enabling fun ajax stuff
     
-    $form['info']['bundle_warning'] = array(
-      '#type' => 'item',
-      '#markup' => '<div id="bundle-info"></div>'  
-    );  
-          
+     //remove types that already have a preset
+    foreach($node_types as $key=>$value){
+      if(opencalais_get_preset_by_type($key)){
+        unset($node_types[$key]);
+      }
+    }
+             
     $form['info']['bundle'] = array(
       '#type' => 'select',
+      '#required' => TRUE,
       '#title' => t('Content Type'),
       '#default_value' => $item->bundle,
       '#options' => $node_types,
-      '#description' => t('The content type to tag.'),
-      '#ajax' => array(
-        'event' => 'change',
-        'callback' => 'opencalais_enabled_js',
-        'wrapper' => 'bundle-info',
-        'effect' => 'fade',
-        'method' => 'replace'
-      ), 
+      '#description' => t('The content type to tag.  Only content types that do not already have a preset are listed'.
+        ' since content types may only have one preset at a time.'),
     );
     
    
@@ -604,11 +600,11 @@ function opencalais_preset_form_validate(&$form, &$form_state) {
     if(!$form_state['values']['bundle']){
       form_set_error('bundle', 'Content Type cannot be blank:');
     } else {
-      if($presets = opencalais_get_enabled_preset_by_type($form_state['values']['bundle'])){
+      if($presets = opencalais_get_preset_by_type($form_state['values']['bundle'])){
         if(count($presets)==1 && $presets[$form_state['values']['name']]){
           return;
         } else {
-          form_set_error('bundle', 'This content type already has an enabled preset - please disable it');
+          form_set_error('bundle', 'This content type already has a preset.  Each content type may only have 1 preset.');
         }
       }
     }
@@ -619,14 +615,19 @@ function opencalais_preset_form_validate(&$form, &$form_state) {
  * Handle the form submission for ctool export_ui.
  */
 function opencalais_preset_form_submit(&$form, &$form_state) {
+  $values = $form_state['values'];
   
-  $form_state['item']->name = $form_state['values']['name'];
-  $form_state['item']->title = $form_state['values']['title'];
-  $form_state['item']->description = $form_state['values']['description'];
-  $form_state['item']->entity = $form_state['values']['entity'];
-  $form_state['item']->bundle = $form_state['values']['bundle'];
-  $form_state['item']->process = $form_state['values']['process'];
-  $form_state['item']->config = $form_state['values']['config'];
+  $values = module_invoke_all('alter_opencalais_preset', $values);
+  
+  $form_state['item']->name = $values['name'];
+  $form_state['item']->title = $values['title'];
+  $form_state['item']->description = $values['description'];
+  $form_state['item']->entity = $values['entity'];
+  $form_state['item']->bundle = $values['bundle'];
+  $form_state['item']->process = $values['process'];
+  $form_state['item']->config = $values['config'];
+  
+  
 }
 
 
@@ -680,60 +681,6 @@ function opencalais_opencalais_default_preset() {
   return $presets;  
 }
 
-
-//ajax callback
-function opencalais_enabled_js($form, $form_state){
-  
-  if( opencalais_get_enabled_preset_by_type($form_state['values']['bundle']) ){
-    $state = array(
-      'values'=> array(
-        'bundle' => $form_state['values']['bundle']
-      )
-    );
-    $form1 = drupal_build_form('opencalais_disable_form', $state );
-    
-   
-    return drupal_render($form1);
-  } else {
-    return '<div></div>';
-  }
-
-}
-
-function opencalais_disable_form($form, &$form_state){
-  
-  $form = array();
-  $form['bundle'] = array(
-    '#type' => 'hidden',
-    '#value' => $form_state['values']['bundle']
-  );
-  $form['disable_button'] = array(
-    '#type' => 'button',
-    '#prefix' => '<div id="bundle-info" class="message error"><p>This content type already has an enabled preset - you can only have one enabled preset for a content type.</p>',
-    '#suffix' => '</div>',
-    '#value' => 'Disable It',
-    '#ajax' => array(
-      'callback' => 'opencalais_disable_other_preset_js',
-      'wrapper' => 'bundle-info',
-    ),
-  );
-  return $form;
-}
-
-function opencalais_disable_other_preset_js($form, $form_state){
-  $content_type = $form_state['values']['bundle'];
-  $preset = opencalais_get_enabled_preset_by_type($content_type);
-  
-  if($content_type && $preset){
-    //return '<pre>'.$content_type.print_r($preset, true).'</pre>';
-    foreach($preset as $name=>$value){
-      ctools_export_set_status('opencalais_preset', $name, TRUE);
-    }
-    return '<div id="bundle-info" class="message status"><p>Successfully Disabled</p></div>';
-  }
-  
-  return '<div id="bundle-info" class="message error"><p>An error has occured: Item could not be disabled: '.$content_type.'</p></div>';
-}
 
 //  Wrapper functions for getting presets - make it easier to use the export_load functions
  
