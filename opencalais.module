@@ -681,37 +681,76 @@ function opencalais_opencalais_default_preset() {
   return $presets;  
 }
 
-
-//  Wrapper functions for getting presets - make it easier to use the export_load functions
  
+ //  Wrapper functions for getting presets - make it easier to use the export_load functions
+ 
+ // creates a function to alter all the presets after they've been loaded and to allow for some static caching to improve performance
+ function opencalais_load_presets($name, $reset=false){
+   $altered = &drupal_static(__FUNCTION__ . '_altered');
+   $presets = &drupal_static(__FUNCTION__);
+   
+   if (!isset($presets) || $reset) {
+     $presets = $altered = array();
+     if (!$reset && $presets = cache_get('opencalais_presets', 'cache')) {
+        
+     }
+     else {
+       if ($reset) {
+         ctools_export_load_object_reset('opencalais_preset');
+       }
+       $presets = ctools_export_load_object('opencalais_preset', 'all');
+       cache_set('opencalais_presets', $presets);
+     }
+   }
+   if (isset($name)) {
+     // Allow other modules to alter the value just before it's returned.
+     if (isset($presets[$name]) && !isset($altered[$name])) {
+       $altered[$name] = TRUE;
+       drupal_alter('opencalais_preset', $presets[$name]);
+     }
+     return isset($presets[$name]) ? $presets[$name] : FALSE;
+   }
+   return $presets;
+ }
  
  /**
   *  Preset_name is the machine name of the preset you which to load
   *  Returns an array in the form preset_name => preset_data
   */
 function opencalais_get_preset($preset_name){
-  return ctools_export_load_object('opencalais_preset', 'names', array($preset_name));
+  return opencalais_load_presets($preset_name, FALSE);
 }
 
 /**
  *  Content type is the machine name of the content type to load presets for
- *  Returns an array in the form preset_name => preset_data
+ *  Returns an array in the form preset_name => preset_data  - ONLY returns 1 preset
  */
 function opencalais_get_preset_by_type($content_type){
-  return ctools_export_load_object('opencalais_preset', 'conditions', array('bundle'=>$content_type));
+  $presets = opencalais_load_presets(NULL, FALSE);
+  
+  foreach($presets as $key=>$preset){
+    if($preset->bundle == $content_type){
+      return array($key=>$preset);
+    }
+  }
+  //no presets were found so just return an empty array
+  return array();
 }
 
 /**
  *  Content type is the machine name of the content type to load presets for - this will only load enabled 
- *  Returns an array in the form preset_name => preset_data
+ *  Returns an array in the form preset_name => preset_data - ONLY returns 1 preset
  */
 function opencalais_get_enabled_preset_by_type($content_type){
-  if($content_type){
-    $presets = ctools_export_load_object('opencalais_preset', 'conditions', array('bundle'=>$content_type));
-    return $presets;
-  } else {
-    return array();
+  $presets = opencalais_load_presets(NULL, FALSE);
+  
+  foreach($presets as $key=>$preset){
+    if($preset->bundle == $content_type && !$preset->disabled){
+      return array($key=>$preset);
+    }
   }
+  //no presets were found so just return an empty array
+  return array();
 }
 
 /**
@@ -719,5 +758,5 @@ function opencalais_get_enabled_preset_by_type($content_type){
  *  Returns an array in the form preset_name => preset_data
  */
 function opencalais_get_all_presets(){
-  return ctools_export_load_object('opencalais_preset', 'all', array());
+  return opencalais_load_presets(NULL, FALSE);
 }
