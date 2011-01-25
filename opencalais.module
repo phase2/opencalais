@@ -684,29 +684,26 @@ function opencalais_opencalais_default_preset() {
  
  //  Wrapper functions for getting presets - make it easier to use the export_load functions
  
- // creates a function to alter all the presets after they've been loaded and to allow for some static caching to improve performance
- function opencalais_load_presets($name, $reset=false){
+ // v
+ function opencalais_load_presets($name){
    $altered = &drupal_static(__FUNCTION__ . '_altered');
    $presets = &drupal_static(__FUNCTION__);
    
-   if (!isset($presets) || $reset) {
+   if (!isset($presets)) {
      $presets = $altered = array();
-     if (!$reset && $presets = cache_get('opencalais_presets', 'cache')) {
-        
+     if ( $presets = cache_get('opencalais_presets', 'cache') ) {
+        //we're good, fetched from cache
      }
      else {
-       if ($reset) {
-         ctools_export_load_object_reset('opencalais_preset');
-       }
        $presets = ctools_export_load_object('opencalais_preset', 'all');
+       drupal_alter('opencalais_presets', $presets);
        cache_set('opencalais_presets', $presets);
      }
    }
    if (isset($name)) {
      // Allow other modules to alter the value just before it's returned.
-     if (isset($presets[$name]) && !isset($altered[$name])) {
-       $altered[$name] = TRUE;
-       drupal_alter('opencalais_preset', $presets[$name]);
+     if (isset($presets[$name])) {
+       
      }
      return isset($presets[$name]) ? $presets[$name] : FALSE;
    }
