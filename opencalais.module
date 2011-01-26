@@ -630,11 +630,6 @@ function opencalais_preset_form_submit(&$form, &$form_state) {
   
 }
 
-
-//====================================================================
-//======== Cruft to remove ===========================================
-//====================================================================
-
 /**
 * Implementation of hook_default_opencalais_preset().
 *
@@ -684,7 +679,7 @@ function opencalais_opencalais_default_preset() {
  
  //  Wrapper functions for getting presets - make it easier to use the export_load functions
  
- // v
+ // creates a function to alter all the presets after they've been loaded and to allow for some static caching to improve performance
  function opencalais_load_presets($name){
    $altered = &drupal_static(__FUNCTION__ . '_altered');
    $presets = &drupal_static(__FUNCTION__);
