@@ -67,7 +67,7 @@ function opencalais_menu() {
   
   $items['admin/config/content/opencalais/disable_item'] = array(
     'page callback' => 'opencalais_disable_other_preset_js',
-    'type' => 'MENU_CALLBACK',
+    'type' => MENU_CALLBACK,
   );
 /*
   $items['admin/settings/calais/queue'] = array(
@@ -242,7 +242,7 @@ function opencalais_form_node_form_alter(&$form, &$form_state, $form_id) {
     $themed_suggestions = theme('opencalais_suggestions', $vars); 
     $form[$field_name]['#suffix'] = $themed_suggestions;
   }
-
+  //TODO: I think we should hide the suggest tags button if no fields are found
   $path = drupal_get_path('module', 'opencalais');
   $form['actions']['suggest_tags'] = array(
     '#type' => 'submit', 
@@ -369,12 +369,18 @@ function opencalais_get_suggestions(&$node, $opencalais_type = NULL) {
     $tags = $opencalais->analyzeHTML($body);
     
     dpm($tags, "Tags back from OpenCalais");
-  
+
+    //get the presets for this node type
+    $presets = opencalais_get_enabled_preset_by_type($node->type);
+    
     $suggestions = array();    
     foreach ($tags as $type => $metadata) {
       $terms = array();
       foreach ($metadata->terms as $guid => $term) {
-        $terms[$term->name] = (float)$term->relevance;
+        //only add it if its relevant
+        if(opencalais_check_suggestion($presests, $type, $term)){  
+          $terms[$term->name] = (float)$term->relevance;
+        }
       }  
       $suggestions[$type] = $terms;
     }   
@@ -384,6 +390,15 @@ function opencalais_get_suggestions(&$node, $opencalais_type = NULL) {
 
   $tag_cache[$node->ocid] = $suggestions;
   return isset($opencalais_type) ? $suggestions[$opencalais_type] : $suggestions;
+}
+
+function opencalais_check_suggestion($preset, $type, $term){
+  if($preset->config['entities'][$type] && $preset->config['entities'][$type]['enabled'] && 
+    $preset->config['entities'][$type]['threshold'] <= $term->relevance){
+    return TRUE;
+  } else {
+    return FALSE;
+  }
 }
 
 /**
@@ -511,7 +526,6 @@ function opencalais_preset_form(&$form, &$form_state) {
   
   if ($form_state['op'] == 'edit') {
 
-     
     $form['info']['bundle'] = array(
       '#type' => 'textfield',
       '#disabled' => TRUE,
@@ -519,8 +533,7 @@ function opencalais_preset_form(&$form, &$form_state) {
       '#value' => $item->bundle,
       '#description' => t('The content type to tag.'),
     );
-    
-    
+
     //TODO: Allow them to ajaxy change the type
   }
   else {
@@ -617,8 +630,6 @@ function opencalais_preset_form_validate(&$form, &$form_state) {
 function opencalais_preset_form_submit(&$form, &$form_state) {
   $values = $form_state['values'];
   
-  $values = module_invoke_all('alter_opencalais_preset', $values);
-  
   $form_state['item']->name = $values['name'];
   $form_state['item']->title = $values['title'];
   $form_state['item']->description = $values['description'];
@@ -687,19 +698,18 @@ function opencalais_opencalais_default_preset() {
    if (!isset($presets)) {
      $presets = $altered = array();
      if ( $presets = cache_get('opencalais_presets', 'cache') ) {
-        //we're good, fetched from cache
+        $presets = $presets->data;
      }
      else {
-       $presets = ctools_export_load_object('opencalais_preset', 'all');
+       //Not using all because it hides the disabled/enabled flag
+       $presets = ctools_export_load_object('opencalais_preset', 'condition', array());
+
        drupal_alter('opencalais_presets', $presets);
        cache_set('opencalais_presets', $presets);
      }
    }
    if (isset($name)) {
-     // Allow other modules to alter the value just before it's returned.
-     if (isset($presets[$name])) {
-       
-     }
+     
      return isset($presets[$name]) ? $presets[$name] : FALSE;
    }
    return $presets;
@@ -735,7 +745,7 @@ function opencalais_get_preset_by_type($content_type){
  */
 function opencalais_get_enabled_preset_by_type($content_type){
   $presets = opencalais_load_presets(NULL, FALSE);
-  
+
   foreach($presets as $key=>$preset){
     if($preset->bundle == $content_type && !$preset->disabled){
       return array($key=>$preset);
@@ -752,3 +762,73 @@ function opencalais_get_enabled_preset_by_type($content_type){
 function opencalais_get_all_presets(){
   return opencalais_load_presets(NULL, FALSE);
 }
+
+
+/*
+ *  Functions to add fields to a content_type via a wizard style thingie
+ */
+ 
+ /**
+  *  Add a field to a content_type - creates a taxonomy field
+  *  @param content_type should be the string machine name of a content type
+  *  @param field_name should be the string name of the field
+  *  Some settings cannot be specified through this function - this is really just a utility wrapper for the fields api
+  */
+ function opencalais_add_field($content_type, $field_name, $taxonomy_name, $title='', $description='' ){
+   node_types_rebuild();
+   
+   //since opencalais fields are taxonomy term references
+   $taxonomy_field = taxonomy_field_info();
+   $taxonomy_widget = taxonomy_field_widget_info();
+   
+   // Create all the fields we are adding to our content type.
+   // http://api.drupal.org/api/function/field_create_field/7
+   $taxonomy_field['field_name'] = $field_name;
+   
+   //handle any fieldexceptions that occur by just setting and error message and returning
+   try{
+     field_create_field($taxonomy_field);
+   } catch (FieldException f){
+     drupal_set_message($f->getMessage(), $type = 'error');
+     return;
+   }
+   $instance = taxonomy_field;
+   
+   // Create all the instances for our fields.
+   // http://api.drupal.org/api/function/field_create_instance/7
+   $instance['field_name'] = $field['field_name'];
+   $instance['title'] = $title ? $title : $field['field_name'];
+   $instance['description'] = $description;
+   $instance['widget'] = $taxonomy_widget;
+   $instance['entity_type'] = 'node';
+   $instance['bundle'] = $content_type;
+   //limit to the proper taxonomy name
+   $instance['settings']['allowed_values'][0] = array(
+     'vocabulary' => $taxonomy_name,
+     'parent' => 0,
+   );
+   
+   //handle any fieldexceptions that occur by just setting and error message and returning
+   try{
+     field_create_instance($instance);
+   } catch (FieldException f){
+     drupal_set_message($f->getMessage(), $type = 'error');
+     return;
+   }
+ }
+ 
+ /**
+  *  Create all the fields for a content type 
+  *  @param content_type - the string name of the content type
+  *  @param vocabs - an array of vocab names, if specified this will limit the vocabularies to those in the list
+  */
+ function opencalais_create_fields($content_type, $vocabs = array()){
+   if(!$vocabs){
+     $vocabs = opencalais_get_all_entities();
+   }
+   
+   foreach($vocabs as $vocab){
+     opencalais_add_field($content_type, 'opencalais_'.$vocab.'_tags', $vocab, 'OpenCalais Tags for ' . $vocab, '');
+   }
+ }
+ 
