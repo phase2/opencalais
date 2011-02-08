@@ -69,6 +69,14 @@ function opencalais_menu() {
     'page callback' => 'opencalais_disable_other_preset_js',
     'type' => MENU_CALLBACK,
   );
+  
+  $items['admin/structure/types/manage/%/opencalais_fields'] = array(
+    'title' => 'OpenCalais Fields',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('opencalais_add_fields_form', 1),
+    'access arguments' => array('administer opencalais'),
+    'type' => MENU_LOCAL_TASK,
+  );
 /*
   $items['admin/settings/calais/queue'] = array(
     'title' => 'Calais Bulk Processing',
@@ -772,6 +780,7 @@ function opencalais_get_all_presets(){
   *  Add a field to a content_type - creates a taxonomy field
   *  @param content_type should be the string machine name of a content type
   *  @param field_name should be the string name of the field
+  *  @param taxonomy_name should be the machine name of the taxonomy you want to add a linked field to 
   *  Some settings cannot be specified through this function - this is really just a utility wrapper for the fields api
   */
  function opencalais_add_field($content_type, $field_name, $taxonomy_name, $title='', $description='' ){
@@ -781,37 +790,48 @@ function opencalais_get_all_presets(){
    $taxonomy_field = taxonomy_field_info();
    $taxonomy_widget = taxonomy_field_widget_info();
    
+   $taxonomy_widget = key($taxonomy_widget);
+   
    // Create all the fields we are adding to our content type.
    // http://api.drupal.org/api/function/field_create_field/7
-   $taxonomy_field['field_name'] = $field_name;
-   
+   $field['field_name'] = strtolower(str_ireplace(' ', '_', $field_name));
+   $field['type'] = key($taxonomy_field);
+   //limit to the proper taxonomy name
+   $field['settings']['allowed_values'][0] = array(
+     'vocabulary' => $taxonomy_name,
+     'parent' => 0,
+   );
    //handle any fieldexceptions that occur by just setting and error message and returning
    try{
-     field_create_field($taxonomy_field);
-   } catch (FieldException f){
+     //only try to create the field if it doesn't exist, otherwise just create an instance
+     if(!field_read_field($field['field_name'], array('include_inactive' => TRUE))){
+       field_create_field($field);
+     }
+   } catch (FieldException $f){
      drupal_set_message($f->getMessage(), $type = 'error');
      return;
    }
-   $instance = taxonomy_field;
+   $instance = current($taxonomy_field);
    
    // Create all the instances for our fields.
    // http://api.drupal.org/api/function/field_create_instance/7
    $instance['field_name'] = $field['field_name'];
    $instance['title'] = $title ? $title : $field['field_name'];
+   $instance['label'] = t('OpenCalais Tags for ') . $taxonomy_name;
    $instance['description'] = $description;
-   $instance['widget'] = $taxonomy_widget;
+   $instance['widget'] = array(
+     'type' => $taxonomy_widget,
+     'settings' => array(),
+     'module' => 'taxonomy'
+   );
    $instance['entity_type'] = 'node';
    $instance['bundle'] = $content_type;
-   //limit to the proper taxonomy name
-   $instance['settings']['allowed_values'][0] = array(
-     'vocabulary' => $taxonomy_name,
-     'parent' => 0,
-   );
    
+ 
    //handle any fieldexceptions that occur by just setting and error message and returning
    try{
      field_create_instance($instance);
-   } catch (FieldException f){
+   } catch (FieldException $f){
      drupal_set_message($f->getMessage(), $type = 'error');
      return;
    }
@@ -819,6 +839,9 @@ function opencalais_get_all_presets(){
  
  /**
   *  Create all the fields for a content type 
+  *  All fields will be named 'opencalais_<vocab_name>_tags 
+  *  @see opencalais_create_vocabulary for more information on machine name creation
+  *  
   *  @param content_type - the string name of the content type
   *  @param vocabs - an array of vocab names, if specified this will limit the vocabularies to those in the list
   */
@@ -828,7 +851,123 @@ function opencalais_get_all_presets(){
    }
    
    foreach($vocabs as $vocab){
-     opencalais_add_field($content_type, 'opencalais_'.$vocab.'_tags', $vocab, 'OpenCalais Tags for ' . $vocab, '');
+     //add the field 
+     $name = substr($vocab, 0, 15);  
+     opencalais_add_field($content_type, 'opencalais_'.$name.'_tags', $vocab, 'OpenCalais Tags for ' . $vocab, '');
    }
+ } 
+ 
+ /**
+  *  Returns an array of opencalais entities which already have a field on a given content type
+  *  @param content_type - the machine name of the content type to find the fields for
+  */
+ function opencalais_get_fields_for_content_type($content_type){
+   $fields = field_info_instances('node', $content_type);
+   
+   $entities = opencalais_get_all_entities();
+   
+   $existing = array();
+   
+   //fields will be an empty array if no instances are found
+   foreach($fields as $field_name => $field){
+     
+     if ($field['widget']['module'] == 'taxonomy') {
+       $field = field_info_field($field_name);
+
+       $opencalais_type = $field['settings']['allowed_values'][0]['vocabulary'];    
+       if (in_array($opencalais_type, $entities)) {
+         $existing[$opencalais_type] = $field_name;
+       }
+     }
+   }
+
+   return $existing;
  }
  
+ /**
+  *  Implements Forms Api to create a form to add the fields necessary for OpenCalais to a content type.
+  */
+  function opencalais_add_fields_form($content_type){
+    //Handle any errors on the form
+    if (!empty($_POST) && form_get_errors()) {
+      drupal_set_message(t('The fields have not been created because of the errors.'), 'error');
+    }
+    
+    //try to get the content type from the arguments (or passed via menu system) (/admin/structure/types/manage/<typename>)
+    //can't do anything if its not there so just return
+    $content_type = $content_type ? $content_type : arg(4);
+    if(!$content_type){ 
+    
+      drupal_set_message(t('An error has occured, no content type was specified'), 'error');
+      return array(); 
+    }
+    
+    $form = array();
+    
+    $opencalais_entities = opencalais_get_all_entities();
+    _opencalais_make_keys($opencalais_entities);
+    
+    $existing = opencalais_get_fields_for_content_type($content_type);
+    
+    //we're assuming that all the existing elements are in the entities, 
+    //and so we want to remove them all from the entities (so you can't double create)
+    $opencalais_entities = array_diff_key($opencalais_entities, $existing); 
+    
+    $form['content_type'] = array(
+      '#type' => 'hidden',
+      '#value' => $content_type
+    );
+    
+    $form['vocabs'] = array(
+      '#type' => 'checkboxes',
+      '#options' => $opencalais_entities,
+      '#title' => t('OpenCalais Vocabularies'),
+      '#description' => t('Select the vocabularies you would like to create fields for.'),
+    );
+    
+    $existing_markup = '<div class="opencalais_list"><ul>';
+    foreach($existing as $key=>$value){
+      $existing_markup .= '<li>' . $key . ' ( ' . $value . ' )</li>';
+    }
+    $existing_markup .= '</ul></div>';
+    
+    $form['existing_fields'] = array(
+      '#type' => 'item',
+      '#title' => t('Existing OpenCalais Fields'),
+      '#description' => t('OpenCalais Fields that already exist on this content type. Use the Manage Fields tab to remove or configure them.'),
+      '#markup' => $existing_markup,
+    );
+    
+    //create the buttons and submit handlers and such
+    $form['actions']['#type'] = 'actions';
+    $form['actions']['submit'] = array(
+     '#type' => 'submit',
+     '#value' => t('Create Fields'),
+    );
+    
+    $form['#submit'][] = 'opencalais_add_fields_submit';
+    
+    $form['#theme'] = 'system_settings_form';
+
+    return $form;
+  }
+  
+  function opencalais_add_fields_submit($form, &$form_state){
+    $content_type = $form_state['values']['content_type'];
+    $to_add = array_filter($form_state['values']['vocabs']);
+    
+    opencalais_create_fields($content_type, $to_add);
+    
+    drupal_set_message(t('OpenCalais Fields have been created.'));
+  }
+  
+  //A Utility function to take a numericly keyed array and make it value=>value for use with forms api
+  function _opencalais_make_keys(&$array){
+    $new_array = array();
+    foreach($array as $key=>$value){
+      
+      $new_array[$value] = $value;
+    }
+    $array = $new_array;
+  }
+  
