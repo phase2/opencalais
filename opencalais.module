@@ -381,12 +381,19 @@ function opencalais_get_suggestions(&$node, $opencalais_type = NULL) {
     //get the presets for this node type
     $presets = opencalais_get_enabled_preset_by_type($node->type);
     
+    if(gettype($presets) == 'array' && count($presets) > 0){
+      $presets = current($presets);
+    }else {
+      return array();
+    }
+    
+    dpm($presets, $node->type);
     $suggestions = array();    
     foreach ($tags as $type => $metadata) {
       $terms = array();
       foreach ($metadata->terms as $guid => $term) {
         //only add it if its relevant
-        if(opencalais_check_suggestion($presests, $type, $term)){  
+        if(opencalais_check_suggestion($presets, $type, $term)){  
           $terms[$term->name] = (float)$term->relevance;
         }
       }  
@@ -397,7 +404,7 @@ function opencalais_get_suggestions(&$node, $opencalais_type = NULL) {
   dpm($opencalais_type, "OC Type");
 
   $tag_cache[$node->ocid] = $suggestions;
-  return isset($opencalais_type) ? $suggestions[$opencalais_type] : $suggestions;
+  return isset($opencalais_type)  ? isset($suggestions[$opencalais_type]) ? $suggestions[$opencalais_type] : array() : $suggestions;
 }
 
 function opencalais_check_suggestion($preset, $type, $term){
@@ -561,8 +568,7 @@ function opencalais_preset_form(&$form, &$form_state) {
       '#title' => t('Content Type'),
       '#default_value' => $item->bundle,
       '#options' => $node_types,
-      '#description' => t('The content type to tag.  Only content types that do not already have a preset are listed'.
-        ' since content types may only have one preset at a time.'),
+      '#description' => t('The content type to tag.  Only content types that do not already have a preset are listed since content types may only have one preset at a time.'),
     );
     
    
@@ -707,11 +713,13 @@ function opencalais_opencalais_default_preset() {
      $presets = $altered = array();
      if ( $presets = cache_get('opencalais_presets', 'cache') ) {
         $presets = $presets->data;
+        dpm("Loaded from Cache");
      }
      else {
        //Not using all because it hides the disabled/enabled flag
-       $presets = ctools_export_load_object('opencalais_preset', 'condition', array());
-
+       $presets = ctools_export_load_object('opencalais_preset', 'all');
+       
+       dpm($presets, 'Presets before alter');
        drupal_alter('opencalais_presets', $presets);
        cache_set('opencalais_presets', $presets);
      }
@@ -755,7 +763,7 @@ function opencalais_get_enabled_preset_by_type($content_type){
   $presets = opencalais_load_presets(NULL, FALSE);
 
   foreach($presets as $key=>$preset){
-    if($preset->bundle == $content_type && !$preset->disabled){
+    if($preset->bundle == $content_type && !isset($preset->disabled)){
       return array($key=>$preset);
     }
   }
@@ -819,6 +827,7 @@ function opencalais_get_all_presets(){
    $instance['title'] = $title ? $title : $field['field_name'];
    $instance['label'] = t('OpenCalais Tags for ') . $taxonomy_name;
    $instance['description'] = $description;
+           
    $instance['widget'] = array(
      'type' => $taxonomy_widget,
      'settings' => array(),
@@ -915,16 +924,16 @@ function opencalais_get_all_presets(){
     
     $form['content_type'] = array(
       '#type' => 'hidden',
-      '#value' => $content_type
+      '#value' => str_ireplace('-', '_', $content_type),
     );
     
     $form['vocabs'] = array(
-      '#type' => 'checkboxes',
-      '#options' => $opencalais_entities,
-      '#title' => t('OpenCalais Vocabularies'),
-      '#description' => t('Select the vocabularies you would like to create fields for.'),
+     '#type' => 'checkboxes',
+     '#options' => $opencalais_entities,
+     '#title' => t('OpenCalais Vocabularies'),
+     '#description' => t('Select the vocabularies you would like to create fields for.'),
     );
-    
+        
     $existing_markup = '<div class="opencalais_list"><ul>';
     foreach($existing as $key=>$value){
       $existing_markup .= '<li>' . $key . ' ( ' . $value . ' )</li>';
@@ -954,6 +963,7 @@ function opencalais_get_all_presets(){
   
   function opencalais_add_fields_submit($form, &$form_state){
     $content_type = $form_state['values']['content_type'];
+
     $to_add = array_filter($form_state['values']['vocabs']);
     
     opencalais_create_fields($content_type, $to_add);
