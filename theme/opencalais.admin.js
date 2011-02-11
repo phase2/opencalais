@@ -1,4 +1,4 @@
-/**
+  /**
  * @file opencalais.admin.js
  *    This file contains all javascript associated with the OpenCalais preset admin screens.
  */
@@ -15,6 +15,9 @@ Drupal.behaviors.opencalaisEntityConfig = {
         var threshold = $(this);
         var container = $(this).parent("div");     
         var name = $(this).attr('name');
+        
+        var id = this.id.substring(0, this.id.indexOf('-threshold')) + '-enabled';
+
         var slider_name = name + '-slider';
         var slider = $('<div>').attr('id', slider_name).insertBefore($(this));
         var label_id = slider_name + '-label';
@@ -27,12 +30,32 @@ Drupal.behaviors.opencalaisEntityConfig = {
           slide: function(event, ui ) {
             threshold.val(ui.value);
             label.html(ui.value);
+            if(!$('#'+id)[0].attr('checked')){
+              $('#'+id).click();
+              $('#'+id).parents('#opencalais_entities tbody tr').addClass('selected');
+            }
           },
         });
         
         this.processed = true;
       }
     });
+    
+    $('#opencalais_entities tbody tr', context).each(function(){
+      var holder = this;
+      if(!this.processed){
+        $('.form-checkbox', this).click(function(){
+          console.log('click registered');
+          if($(this).attr('checked')){
+            $(holder).addClass('selected');
+          } else {
+            $(holder).removeClass('selected');
+          }
+        });
+        this.processed = true;
+      }
+    });
+    
   }
 };
 

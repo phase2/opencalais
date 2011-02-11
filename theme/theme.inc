@@ -48,3 +48,42 @@ function theme_opencalais_preset_form($vars) {
   $output .= $buttons;
   return $output;  
 }
+
+function theme_opencalais_add_fields_entities($vars) {
+  $path = drupal_get_path('module', 'opencalais');
+  drupal_add_library('system', 'ui.slider');
+  drupal_add_js($path . '/theme/opencalais.admin.js');
+  drupal_add_css($path . '/theme/opencalais.admin.css');
+
+  $enabled_desc = NULL;
+  $threshold_desc = NULL;
+  $rows = array();
+  foreach (element_children($vars['info']['config']['entities']) as $entity) {
+    $settings = $vars['info']['config']['entities'][$entity];
+    $enabled_desc = $settings['enabled']['#description'];
+    $threshold_desc = $settings['threshold']['#description'];
+    unset($settings['enabled']['#description']);
+    unset($settings['threshold']['#description']);
+    $rows[] = array( 
+        drupal_render($settings['enabled']) . '<span class="opencalais_tag">' . opencalais_api_make_readable($entity) . '</span>',
+        drupal_render($settings['threshold']),
+    );
+  }
+
+
+  $help = array('path' => 'misc/help.png', 'alt' => 'Help');
+  $header = array(
+    t('Category') . theme('image', array_merge($help, array('title' => $enabled_desc))),
+    t('Threshold') . theme('image', array_merge($help, array('title' => $threshold_desc))),
+  );
+  
+  $entity_table = theme('table', array(
+    'header' => $header, 
+    'rows' => $rows,
+    'attributes' => array('id' => 'opencalais_entities'),
+  ));
+  
+  return $entity_table;  
+}
+
+

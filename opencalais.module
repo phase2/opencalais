@@ -17,31 +17,7 @@ define('CALAIS_WATCHDOG', 'OpenCalais');
  
 // Node Build Mode Contant
 define('CALAIS_PROCESSED', TRUE);
- 
-/**
- * Implementation of hook_ctools_plugin_api().
- *
- * Tell ctools that we support the default_opencalais_presets API.
- */
-function opencalais_ctools_plugin_api($owner, $api) {
-  if ($owner == 'opencalais' && $api == 'opencalais_default_presets') {
-    return array('version' => 1);
-  }
-}
-
-/**
- 	* Implementation of hook_ctools_plugin_directory().
- 	*
- 	* Defines where to look for ctools plugin implementations
- 	*/
-function opencalais_ctools_plugin_directory($module, $plugin) {
- 	if ($module == 'ctools' && $plugin == 'export_ui') {
-   	return 'plugins/export_ui';
- 	}
-} 
-
- 
- 
+  
 /**
  * Implements hook_permission().
  */
@@ -137,6 +113,11 @@ function opencalais_theme($existing, $type, $theme, $path) {
       'path' => "$path/theme",
       'file' => 'theme.inc',
     ),
+    'opencalais_add_fields_entities' => array(
+      'render element' => 'info',
+      'path' => "$path/theme",
+      'file' => 'theme.inc',
+    ),
   );
 }
 
@@ -161,26 +142,7 @@ function opencalais_entity_info() {
         'bundle' => 'type',
       ),
     ),
-  );
-  
-  // ***  Add a bundle here for each Entity Type?
-  
-  // Bundles must provide a human readable name so we can create help and error
-  // messages, and the path to attach Field admin pages to.
-  /*
-  foreach (node_type_get_names() as $type => $name) {
-    $return['node']['bundles'][$type] = array(
-      'label' => $name, 
-      'admin' => array(
-        'path' => 'admin/structure/types/manage/%node_type', 
-        'real path' => 'admin/structure/types/manage/' . str_replace('_', '-', $type), 
-        'bundle argument' => 4, 
-        'access arguments' => array('administer content types'),
-      ),
-    );
-  }
-  */
-  
+  );  
   return $return;
 }
 
@@ -206,30 +168,6 @@ function opencalais_node_delete($node) {
             ->condition('nid', $node->nid)
             ->execute();
 }
-
-/**
- * Tag the given node content with OpenCalais
- */
-function opencalais_tag($node) {
-
-  // Add the term
-  $guid = uniqid();
-  $data = array(
-    'name' => 'Mr. '. $node->title . ' ' . $guid,
-    'type' => 'Person',
-    'vocabulary' => 'tags',
-    'guid' => $guid,    
-  );
-  $term = new Entity($data, 'opencalais_term');
-  $term->save();
-
-  // Relate it to the node
-  db_insert('opencalais_term_node')
-            ->fields(array('tid', 'nid', 'relevance'))
-            ->values(array($term->tid, $node->nid, 0.5))
-            ->execute();  
-}
-
 
 /**
  * Implements hook_form_BASE_FORM_ID_alter().
@@ -302,11 +240,7 @@ function opencalais_get_opencalais_tag_fields($form, $entity, $bundle) {
       }
     }
   }
-
-  dpm($form, "Form");
-  dpm($entities, "Entities");
-  dpm($instances, "Field Instance Info");
-  dpm($fields, "Fields");
+  
   return $fields;
 }
 
@@ -378,41 +312,31 @@ function opencalais_get_suggestions(&$node, $opencalais_type = NULL) {
     
     dpm($tags, "Tags back from OpenCalais");
 
-    //get the presets for this node type
-    $presets = opencalais_get_enabled_preset_by_type($node->type);
-    
-    if(gettype($presets) == 'array' && count($presets) > 0){
-      $presets = current($presets);
-    }else {
-      return array();
-    }
-    
-    dpm($presets, $node->type);
     $suggestions = array();    
     foreach ($tags as $type => $metadata) {
-      $terms = array();
+      $terms = array();  
+      $settings = field_info_instance('node', 'opencalais_'.strtolower(substr($type, 0, 15)).'_tags', $node->type);
       foreach ($metadata->terms as $guid => $term) {
         //only add it if its relevant
-        if(opencalais_check_suggestion($presets, $type, $term)){  
+        if(opencalais_check_suggestion($settings, $term)){  
           $terms[$term->name] = (float)$term->relevance;
         }
       }  
       $suggestions[$type] = $terms;
     }   
   }
-  dpm($suggestions, "Suggs on the inside");
-  dpm($opencalais_type, "OC Type");
 
   $tag_cache[$node->ocid] = $suggestions;
   return isset($opencalais_type)  ? isset($suggestions[$opencalais_type]) ? $suggestions[$opencalais_type] : array() : $suggestions;
 }
 
-function opencalais_check_suggestion($preset, $type, $term){
-  if($preset->config['entities'][$type] && $preset->config['entities'][$type]['enabled'] && 
-    $preset->config['entities'][$type]['threshold'] <= $term->relevance){
-    return TRUE;
-  } else {
-    return FALSE;
+/**
+ *  Check whether the term should apply based on the field instance settings
+ */
+function opencalais_check_suggestion($settings, $term){
+  
+  if($settings && is_array($settings['settings']) && isset($settings['settings']['threshold'])){
+    return $settings['settings']['threshold'] <= $term->relevance;
   }
 }
 
@@ -514,276 +438,24 @@ function opencalais_get_all_entities() {
   return $entities;
 }
 
-/**
- * Renders the query form.
- */
-function opencalais_preset_form(&$form, &$form_state) {
-  $item = $form_state['item'];
-  
-  $form['#theme'] = 'opencalais_preset_form';
-
-  $form['info']['title'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Title'),
-    '#description' => t('The human readable name for this preset'),
-    '#default_value' => $item->title,
-  );
-  $form['info']['description'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Description'),
-    '#description' => t('The description for this preset.'),
-    '#default_value' => $item->description,
-  );  
-  $form['info']['entity'] = array(
-    '#type' => 'value',
-    '#value' => 'node',
-  );
-  
-  if ($form_state['op'] == 'edit') {
-
-    $form['info']['bundle'] = array(
-      '#type' => 'textfield',
-      '#disabled' => TRUE,
-      '#title' => t('Content Type'),
-      '#value' => $item->bundle,
-      '#description' => t('The content type to tag.'),
-    );
-
-    //TODO: Allow them to ajaxy change the type
-  }
-  else {
-    node_types_rebuild();
-    $node_types = node_type_get_names();
-    
-     //remove types that already have a preset
-    foreach($node_types as $key=>$value){
-      if(opencalais_get_preset_by_type($key)){
-        unset($node_types[$key]);
-      }
-    }
-             
-    $form['info']['bundle'] = array(
-      '#type' => 'select',
-      '#required' => TRUE,
-      '#title' => t('Content Type'),
-      '#default_value' => $item->bundle,
-      '#options' => $node_types,
-      '#description' => t('The content type to tag.  Only content types that do not already have a preset are listed since content types may only have one preset at a time.'),
-    );
-    
-   
-  }
-
-  $process_options = array(
-    CALAIS_PROCESS_MANUAL => t('NEVER: suggest the terms, but let me tag the content'),
-    CALAIS_PROCESS_AUTO   => t('ALWAYS: tag the content automatically'),
-  );
-  $form['info']['process'] = array(
-    '#type' => 'radios',
-    '#title' => t('Tag content'),
-    '#default_value' => $item->process,
-    '#options' => $process_options,
-  );
-  
-  $form['info']['config'] = array('#tree' => TRUE);
-  $form['info']['config']['entities'] = array('#tree' => TRUE);
-
-  $entities = opencalais_get_all_entities();
-  sort($entities);
-  
-  $entity_defaults = isset($item->config['entities']) ? $item->config['entities'] : array('enabled' => TRUE, 'threshold' => 0.0);
-  
-  foreach ($entities as $entity) {
-    $defaults = isset($entity_defaults[$entity]) ? $entity_defaults[$entity] : $entity_defaults;
-  
-    $form['info']['config']['entities'][$entity]['enabled'] = array(
-      '#type' => 'checkbox',
-      '#title' => t('Enabled'),
-      '#title_display' => 'invisible',
-      '#default_value' => $defaults['enabled'],
-      '#description' => t('Should this content type be tagged with this category'),
-    );
-    $form['info']['config']['entities'][$entity]['threshold'] = array(
-      '#type' => 'textfield',
-      '#size' => 5,
-      '#title' => t('Minimum suggested tag relevancy'),
-      '#title_display' => 'invisible',
-      '#default_value' => $defaults['threshold'],
-      '#description' => t('Determine how relevant a term must be in order for Calais to suggest it for a particular node.  Based on a 0.00-1.00 scale, with 0.00 being least relevant (i.e. many terms appear).'),
-      '#attributes' => array('class' => array('threshold_slider')),
-    );
-    // TODO: Allow mapping to different vocabularies?
-  }
-  
-  return $form;
-}
-
-/**
- * Validate the query form submission.
- */
-function opencalais_preset_form_validate(&$form, &$form_state) {
-
-  if($form_state['op'] == 'edit' || $form_state['op'] == 'add'){
-    if(!$form_state['values']['bundle']){
-      form_set_error('bundle', 'Content Type cannot be blank:');
-    } else {
-      if($presets = opencalais_get_preset_by_type($form_state['values']['bundle'])){
-        if(count($presets)==1 && $presets[$form_state['values']['name']]){
-          return;
-        } else {
-          form_set_error('bundle', 'This content type already has a preset.  Each content type may only have 1 preset.');
-        }
-      }
-    }
-  }
-}
-
-/**
- * Handle the form submission for ctool export_ui.
- */
-function opencalais_preset_form_submit(&$form, &$form_state) {
-  $values = $form_state['values'];
-  
-  $form_state['item']->name = $values['name'];
-  $form_state['item']->title = $values['title'];
-  $form_state['item']->description = $values['description'];
-  $form_state['item']->entity = $values['entity'];
-  $form_state['item']->bundle = $values['bundle'];
-  $form_state['item']->process = $values['process'];
-  $form_state['item']->config = $values['config'];
-  
-  
-}
-
-/**
-* Implementation of hook_default_opencalais_preset().
-*
-* Provide a couple of default presets.
-* Cache it so we don't have to recreate them every time
-*/
-function opencalais_opencalais_default_preset() {
-
-  if($presets = cache_get('opencalais-presets')){
-    
-    return $presets->data;
-  }
-  $presets = array();
-   
-  $node_types = array();
-  
-   if(node_type_get_type('article')){
-     $node_types['article'] = 'Article';
-   }
-   
-   if(node_type_get_type('page')){
-     $node_types['page'] = 'Basic Page';
-   }
-    
-  foreach ($node_types as $key=>$name) {
-    
-    $preset = new stdClass;
-    $preset->disabled = TRUE;
-    $preset->api_version = 1;
-    $preset->bundle = $key;
-    $preset->process = 0;
-    $preset->title = $name;
-    $preset->name = 'opencalias-default-'.$key;
-    $preset->description = '';
-    $preset->send_calais_request = // CALAIS_REQUEST_NO;
-    $preset->tag_content = CALAIS_PROCESS_MANUAL;
-    $preset->tag_config = 'a:0:{}';    
-        
-    $presets[$preset->name]= $preset;
-  }
-  
-  cache_set('opencalais-presets', $presets);
-  
-  return $presets;  
-}
-
- 
- //  Wrapper functions for getting presets - make it easier to use the export_load functions
- 
- // creates a function to alter all the presets after they've been loaded and to allow for some static caching to improve performance
- function opencalais_load_presets($name){
-   $altered = &drupal_static(__FUNCTION__ . '_altered');
-   $presets = &drupal_static(__FUNCTION__);
-   
-   if (!isset($presets)) {
-     $presets = $altered = array();
-     if ( $presets = cache_get('opencalais_presets', 'cache') ) {
-        $presets = $presets->data;
-        dpm("Loaded from Cache");
-     }
-     else {
-       //Not using all because it hides the disabled/enabled flag
-       $presets = ctools_export_load_object('opencalais_preset', 'all');
-       
-       dpm($presets, 'Presets before alter');
-       drupal_alter('opencalais_presets', $presets);
-       cache_set('opencalais_presets', $presets);
-     }
-   }
-   if (isset($name)) {
-     
-     return isset($presets[$name]) ? $presets[$name] : FALSE;
-   }
-   return $presets;
- }
- 
- /**
-  *  Preset_name is the machine name of the preset you which to load
-  *  Returns an array in the form preset_name => preset_data
-  */
-function opencalais_get_preset($preset_name){
-  return opencalais_load_presets($preset_name, FALSE);
-}
-
-/**
- *  Content type is the machine name of the content type to load presets for
- *  Returns an array in the form preset_name => preset_data  - ONLY returns 1 preset
- */
-function opencalais_get_preset_by_type($content_type){
-  $presets = opencalais_load_presets(NULL, FALSE);
-  
-  foreach($presets as $key=>$preset){
-    if($preset->bundle == $content_type){
-      return array($key=>$preset);
-    }
-  }
-  //no presets were found so just return an empty array
-  return array();
-}
-
-/**
- *  Content type is the machine name of the content type to load presets for - this will only load enabled 
- *  Returns an array in the form preset_name => preset_data - ONLY returns 1 preset
- */
-function opencalais_get_enabled_preset_by_type($content_type){
-  $presets = opencalais_load_presets(NULL, FALSE);
-
-  foreach($presets as $key=>$preset){
-    if($preset->bundle == $content_type && !isset($preset->disabled)){
-      return array($key=>$preset);
-    }
-  }
-  //no presets were found so just return an empty array
-  return array();
-}
-
-/**
- *  returns a list of all the current presets
- *  Returns an array in the form preset_name => preset_data
- */
-function opencalais_get_all_presets(){
-  return opencalais_load_presets(NULL, FALSE);
-}
-
-
 /*
  *  Functions to add fields to a content_type via a wizard style thingie
  */
- 
+  
+ /**
+  *  Implementation of hook_field_info_alter
+  *  Used to add an instance setting to taxonomy term references for the threshold
+  */  
+  function opencalais_field_info_alter(&$info){
+    if (isset($info['taxonomy_term_reference'])){
+
+      if(!isset($info['taxonomy_term_reference']['instance_settings'])) {
+        $info['taxonomy_term_reference']['instance_settings'] = array();
+      }
+      $info['taxonomy_term_reference']['instance_settings']['threshold'] = 0;
+    }
+  }
+  
  /**
   *  Add a field to a content_type - creates a taxonomy field
   *  @param content_type should be the string machine name of a content type
@@ -791,7 +463,7 @@ function opencalais_get_all_presets(){
   *  @param taxonomy_name should be the machine name of the taxonomy you want to add a linked field to 
   *  Some settings cannot be specified through this function - this is really just a utility wrapper for the fields api
   */
- function opencalais_add_field($content_type, $field_name, $taxonomy_name, $title='', $description='' ){
+ function opencalais_add_field($content_type, $field_name, $taxonomy_name, $title='', $description='', $threshold=0 ){
    node_types_rebuild();
    
    //since opencalais fields are taxonomy term references
@@ -809,6 +481,7 @@ function opencalais_get_all_presets(){
      'vocabulary' => $taxonomy_name,
      'parent' => 0,
    );
+
    //handle any fieldexceptions that occur by just setting and error message and returning
    try{
      //only try to create the field if it doesn't exist, otherwise just create an instance
@@ -835,7 +508,7 @@ function opencalais_get_all_presets(){
    );
    $instance['entity_type'] = 'node';
    $instance['bundle'] = $content_type;
-   
+   $instance['settings']['threshold'] = $threshold;
  
    //handle any fieldexceptions that occur by just setting and error message and returning
    try{
@@ -854,15 +527,15 @@ function opencalais_get_all_presets(){
   *  @param content_type - the string name of the content type
   *  @param vocabs - an array of vocab names, if specified this will limit the vocabularies to those in the list
   */
- function opencalais_create_fields($content_type, $vocabs = array()){
-   if(!$vocabs){
+ function opencalais_create_fields($content_type, $vocabs = array(), $all = FALSE){
+   if(!$vocabs && $all){
      $vocabs = opencalais_get_all_entities();
    }
    
-   foreach($vocabs as $vocab){
+   foreach($vocabs as $vname => $vocab){
      //add the field 
-     $name = substr($vocab, 0, 15);  
-     opencalais_add_field($content_type, 'opencalais_'.$name.'_tags', $vocab, 'OpenCalais Tags for ' . $vocab, '');
+     $name = substr($vname, 0, 15);  
+     opencalais_add_field($content_type, 'opencalais_'.$name.'_tags', $vname, 'OpenCalais Tags for ' . $vname, '', $vocab['threshold']);
    }
  } 
  
@@ -879,13 +552,13 @@ function opencalais_get_all_presets(){
    
    //fields will be an empty array if no instances are found
    foreach($fields as $field_name => $field){
-     
+    
      if ($field['widget']['module'] == 'taxonomy') {
-       $field = field_info_field($field_name);
-
-       $opencalais_type = $field['settings']['allowed_values'][0]['vocabulary'];    
+        
+       $main_field = field_info_field($field_name);
+       $opencalais_type = $main_field['settings']['allowed_values'][0]['vocabulary'];    
        if (in_array($opencalais_type, $entities)) {
-         $existing[$opencalais_type] = $field_name;
+         $existing[$opencalais_type] = array('field' => $field_name, 'threshold' => $field['settings']['threshold']);
        }
      }
    }
@@ -927,16 +600,38 @@ function opencalais_get_all_presets(){
       '#value' => str_ireplace('-', '_', $content_type),
     );
     
-    $form['vocabs'] = array(
-     '#type' => 'checkboxes',
-     '#options' => $opencalais_entities,
-     '#title' => t('OpenCalais Vocabularies'),
-     '#description' => t('Select the vocabularies you would like to create fields for.'),
-    );
-        
+    $form['info']['config'] = array('#tree' => TRUE);
+    $form['info']['config']['entities'] = array('#tree' => TRUE);
+  
+    $entities = $opencalais_entities;
+    sort($entities);
+    
+    $entity_defaults = isset($item->config['entities']) ? $item->config['entities'] : array('enabled' => FALSE, 'threshold' => 0.0);
+    
+    foreach ($entities as $entity) {
+      $defaults = isset($entity_defaults[$entity]) ? $entity_defaults[$entity] : $entity_defaults;
+    
+      $form['info']['config']['entities'][$entity]['enabled'] = array(
+        '#type' => 'checkbox',
+        '#title' => t('Create'),
+        '#title_display' => 'invisible',
+        '#default_value' => $defaults['enabled'],
+        '#description' => t('Should this content type be tagged with this category'),
+      );
+      $form['info']['config']['entities'][$entity]['threshold'] = array(
+        '#type' => 'textfield',
+        '#size' => 5,
+        '#title' => t('Minimum suggested tag relevancy'),
+        '#title_display' => 'invisible',
+        '#default_value' => $defaults['threshold'],
+        '#description' => t('Determine how relevant a term must be in order for Calais to suggest it for a particular node.  Based on a 0.00-1.00 scale, with 0.00 being least relevant (i.e. many terms appear).'),
+        '#attributes' => array('class' => array('threshold_slider')),
+      );
+    }
+    
     $existing_markup = '<div class="opencalais_list"><ul>';
     foreach($existing as $key=>$value){
-      $existing_markup .= '<li>' . $key . ' ( ' . $value . ' )</li>';
+      $existing_markup .= '<li><strong>' . $key . '</strong> ( <em>'.t('Field').'</em>: ' . $value['field'] . ', <em>'.t('Threshold').'</em>: ' . $value['threshold'] . '</em> )</li>';
     }
     $existing_markup .= '</ul></div>';
     
@@ -946,12 +641,31 @@ function opencalais_get_all_presets(){
       '#description' => t('OpenCalais Fields that already exist on this content type. Use the Manage Fields tab to remove or configure them.'),
       '#markup' => $existing_markup,
     );
-    
+    $form['info']['#theme'] = 'opencalais_add_fields_entities';
     //create the buttons and submit handlers and such
     $form['actions']['#type'] = 'actions';
     $form['actions']['submit'] = array(
      '#type' => 'submit',
      '#value' => t('Create Fields'),
+    );
+    
+    // This is to create a help block to explain some things about the form
+    
+    $help_text  = 'This form will allow you to create taxonomy term references on your content type that correspond to ';
+    $help_text .= 'OpenCalais categories (<em>taxonomy vocabularies</em>).';
+    
+    $usage_text  = 'Simply select the categories that apply to your content by checking their checkbox and then use the slider to set ';
+    $usage_text .= 'the relevancy threshold which a term must meet to be applied.'; 
+    
+    $notes_text = 'Note that the broader a category (for example "Country" vs. "City") the lower the average relevance of terms will be.';
+    
+    $form['help'] = array(
+      '#type' => 'item',
+      '#title' => t('OpenCalais Fields Help'),
+      '#description' => t('Help with this form'),
+      '#markup' => '<br/><p>' . t($help_text) . '</p><br/><p>' . t($usage_text) . '</p><br/><p><em>' . t($notes_text) . '</em></p>',
+      '#prefix' => '<div class="">',
+      '#suffix' => '</div>'
     );
     
     $form['#submit'][] = 'opencalais_add_fields_submit';
@@ -961,10 +675,59 @@ function opencalais_get_all_presets(){
     return $form;
   }
   
+  function opencalais_form_field_ui_field_edit_form_alter(&$form, &$form_state, $form_id){
+    //only show the threshold editor for nodes created by opencalais (nodes that already have a threshold)
+    if(isset($form['#instance']['settings']['threshold'])){
+      $form['instance']['settings']['threshold'] = array(
+        '#type' => 'textfield',
+        '#title' => t('OpenCalais Threshold Value'),
+        '#description' => t('How relevant a term must be to be applied to a node. This is only utilized on OpenCalais Fields.'),
+        '#default_value' => $form['#instance']['settings']['threshold'],
+        
+      );
+      if(!is_array($form['#validate'])){
+        $form['validate'] = array();
+      }
+      $form['#validate'][] = 'opencalais_check_threshold';
+    }
+  }
+  /**
+   *  Simple Validator for the system settings form;
+   */
+  function opencalais_check_threshold($form, $form_state){
+    $threshold = $form_state['values']['instance']['settings']['threshold'];
+    if(!$threshold || $threshold < 0 || $threshold > 1){
+      form_set_error('instance[settings][threshold]', 'Threshold must be between 0 and 1');
+    } 
+  }
+  
+  
+  /**
+   *  Proprocessor for the system_settings form form to move OpenCalais Terms to the sidebar
+   */
+  function opencalais_preprocess_system_settings_form(&$variables){
+    if($variables['form']['#form_id'] == 'opencalais_add_fields_form'){
+      //push the existing fields list into the sidebar
+      $variables['sidebar'][] = $variables['form']['existing_fields'];
+      unset($variables['form']['existing_fields']);
+      
+      $variables['sidebar'][] = $variables['form']['help'];
+      unset($variables['form']['help']);
+      
+    }
+  }
+  
+  
+  //just used to filter out disabled fields
+  function _opencalais_filter($item){ return $item['enabled']; }
+  
+  /**
+   *  Function to handle the submit from the add_fields form
+   */
   function opencalais_add_fields_submit($form, &$form_state){
     $content_type = $form_state['values']['content_type'];
-
-    $to_add = array_filter($form_state['values']['vocabs']);
+    
+    $to_add = array_filter($form_state['values']['config']['entities'], '_opencalais_filter');
     
     opencalais_create_fields($content_type, $to_add);
     

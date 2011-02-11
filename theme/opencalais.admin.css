@@ -19,7 +19,6 @@ div.ui-slider {
 .slider_label {
   display: inline-block;
   text-align: center;
-  width: 10%;
   min-width: 25px;
 }
 
@@ -31,4 +30,20 @@ div.slider_holder {
 
 #bundle-info {
   padding: 5px;
+}
+
+#opencalais_entities .form-type-checkbox {
+  display: inline-block;
+  padding: 0px 5px 2px 0px;
+}
+
+#opencalais_entities .opencalais_tag {
+  display: inline-block;
+  padding: 2px 0px 0px 0px;
+}
+
+#opencalais_entities th img {
+  position: relative;
+  top: 3px;
+  left: 2px;
 }
