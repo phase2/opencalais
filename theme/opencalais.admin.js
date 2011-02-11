@@ -30,7 +30,7 @@ Drupal.behaviors.opencalaisEntityConfig = {
           slide: function(event, ui ) {
             threshold.val(ui.value);
             label.html(ui.value);
-            if(!$('#'+id)[0].attr('checked')){
+            if(!$('#'+id).attr('checked')){
               $('#'+id).click();
               $('#'+id).parents('#opencalais_entities tbody tr').addClass('selected');
             }

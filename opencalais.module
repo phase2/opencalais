@@ -231,6 +231,7 @@ function opencalais_get_opencalais_tag_fields($form, $entity, $bundle) {
   $fields = array();
   $entities = opencalais_get_all_entities();
   $instances = field_info_instances($entity, $bundle);
+  
   foreach ($instances as $field_name => $instance) {
     if ($instance['widget']['module'] == 'taxonomy') {
       $field = field_info_field($field_name);
@@ -315,6 +316,7 @@ function opencalais_get_suggestions(&$node, $opencalais_type = NULL) {
     $suggestions = array();    
     foreach ($tags as $type => $metadata) {
       $terms = array();  
+      
       $settings = field_info_instance('node', 'opencalais_'.strtolower(substr($type, 0, 15)).'_tags', $node->type);
       foreach ($metadata->terms as $guid => $term) {
         //only add it if its relevant
@@ -475,6 +477,7 @@ function opencalais_get_all_entities() {
    // Create all the fields we are adding to our content type.
    // http://api.drupal.org/api/function/field_create_field/7
    $field['field_name'] = strtolower(str_ireplace(' ', '_', $field_name));
+   dpm($content_type);
    $field['type'] = key($taxonomy_field);
    //limit to the proper taxonomy name
    $field['settings']['allowed_values'][0] = array(
@@ -578,6 +581,7 @@ function opencalais_get_all_entities() {
     //try to get the content type from the arguments (or passed via menu system) (/admin/structure/types/manage/<typename>)
     //can't do anything if its not there so just return
     $content_type = $content_type ? $content_type : arg(4);
+    $content_type = str_ireplace('-', '_', $content_type);
     if(!$content_type){ 
     
       drupal_set_message(t('An error has occured, no content type was specified'), 'error');
@@ -676,14 +680,13 @@ function opencalais_get_all_entities() {
   }
   
   function opencalais_form_field_ui_field_edit_form_alter(&$form, &$form_state, $form_id){
-    //only show the threshold editor for nodes created by opencalais (nodes that already have a threshold)
-    if(isset($form['#instance']['settings']['threshold'])){
+    //only show the threshold editor for nodes created by opencalais (nodes that already have a threshold and have the correct name)
+    if(isset($form['#instance']['settings']['threshold']) && stristr($form['#field']['field_name'], 'opencalais_')){
       $form['instance']['settings']['threshold'] = array(
         '#type' => 'textfield',
         '#title' => t('OpenCalais Threshold Value'),
         '#description' => t('How relevant a term must be to be applied to a node. This is only utilized on OpenCalais Fields.'),
         '#default_value' => $form['#instance']['settings']['threshold'],
-        
       );
       if(!is_array($form['#validate'])){
         $form['validate'] = array();
@@ -691,12 +694,13 @@ function opencalais_get_all_entities() {
       $form['#validate'][] = 'opencalais_check_threshold';
     }
   }
+
   /**
    *  Simple Validator for the system settings form;
    */
   function opencalais_check_threshold($form, $form_state){
     $threshold = $form_state['values']['instance']['settings']['threshold'];
-    if(!$threshold || $threshold < 0 || $threshold > 1){
+    if(!isset($threshold) || $threshold < 0 || $threshold > 1){
       form_set_error('instance[settings][threshold]', 'Threshold must be between 0 and 1');
     } 
   }
