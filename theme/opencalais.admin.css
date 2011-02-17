@@ -47,3 +47,11 @@ div.slider_holder {
   top: 3px;
   left: 2px;
 }
+
+#opencalais_entities tr.existing {
+  background: #ECF8F4;
+}
+
+#opencalais_entities tr.deleted {
+  background: #FFE4E0;
+}

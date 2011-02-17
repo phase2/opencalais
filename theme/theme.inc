@@ -65,7 +65,7 @@ function theme_opencalais_add_fields_entities($vars) {
     unset($settings['enabled']['#description']);
     unset($settings['threshold']['#description']);
     $rows[] = array( 
-        drupal_render($settings['enabled']) . '<span class="opencalais_tag">' . opencalais_api_make_readable($entity) . '</span>',
+        drupal_render($settings['existing']) . drupal_render($settings['enabled']) . '<span class="opencalais_tag">' . opencalais_api_make_readable($entity) . '</span>',
         drupal_render($settings['threshold']),
     );
   }

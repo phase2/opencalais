@@ -40,12 +40,11 @@ Drupal.behaviors.opencalaisEntityConfig = {
         this.processed = true;
       }
     });
-    
+    //add stuff to make the rows highlight when they are selected
     $('#opencalais_entities tbody tr', context).each(function(){
       var holder = this;
       if(!this.processed){
         $('.form-checkbox', this).click(function(){
-          console.log('click registered');
           if($(this).attr('checked')){
             $(holder).addClass('selected');
           } else {
@@ -53,6 +52,30 @@ Drupal.behaviors.opencalaisEntityConfig = {
           }
         });
         this.processed = true;
+      }
+    });
+    //add stuff to highlight existing fields and add some confirmation stuff
+    $('#opencalais_entities tbody tr', context).each(function(){
+      var row = this;
+
+      if(!this.processedExisting){
+        $('input', this).each(function(){
+          if(this.type == 'hidden' && this.value){
+            $(row).addClass('existing');
+            $('.form-checkbox', row).click(function(e){
+              if(!this.checked){
+                this.checked = !confirm('When you save the form, this field and all its data will be removed from this content type. Continue?');
+                if(!this.checked){
+                  $(row).addClass('deleted');
+                } 
+              }else {
+                $(row).removeClass('selected');
+                $(row).removeClass('deleted');
+              }
+            });
+          }
+        });
+        this.processedExisting = true;
       }
     });
     
