@@ -5,5 +5,15 @@ label.suggestion_selected { color:#0074BD; background:#EEEEEE; }
 .suggestions label.score-1 { font-size:.8em;}
 .suggestions label.score-2 { font-size:1.2em;}
 .suggestions label.score-3 { font-size:1.6em;}
+.opencalais_submit {
+  display: inline-block;
+}
 
+.opencalais_button_holder div.throbber {
+  display: none;
+}
+
+.opencalais_button_holder div.message {
+  padding: 3px 125px;
+}
 /* .keywords_available { background-color: #ccffbb; } */

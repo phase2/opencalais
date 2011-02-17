@@ -6,21 +6,26 @@
 
 Drupal.behaviors.opencalaisNodeEdit = {
   attach: function(context) {
-  	$('label.suggestion', context).click(function() {
-  alert("attach for " + $(this).attr('for'));
-  		var tags = $('#' + $(this).attr('for'));
-  		var keyword = $(this).text();
-  		
-  		if($(this).hasClass('suggestion_selected')) {
-  			Drupal.opencalais.removeKeyword(tags, keyword);
-  			$(this).removeClass('suggestion_selected');
-  		}
-  		else {
-  			Drupal.opencalais.addKeyword(tags, keyword);
-  			$(this).addClass('suggestion_selected');
+  	$('label.suggestion', context).each(function(){
+  	  if(!this.opencalais_processed){
+  	    this.opencalais_processed = true;
+    	  $(this).click(function(e) {
+        
+      		var tags = $('#' + $(this).attr('for'));
+      		var keyword = $(this).text();
+      		
+      		if($(this).hasClass('suggestion_selected')) {
+      			Drupal.opencalais.removeKeyword(tags, keyword);
+      			$(this).removeClass('suggestion_selected');
+      		}
+      		else {
+      			Drupal.opencalais.addKeyword(tags, keyword);
+      			$(this).addClass('suggestion_selected');
+      		}
+    		});
   		}
   	});
-  
+    
   	$('label.suggestion', context).each( function() {
   		var tags = $('#' + $(this).attr('for'));
   		var keyword = $(this).text();
@@ -28,7 +33,7 @@ Drupal.behaviors.opencalaisNodeEdit = {
   		if (tags.val().indexOf(keyword) != -1) {
   			$(this).addClass('suggestion_selected');
   		}		
-  	});
+  	});     
   }
 };
 

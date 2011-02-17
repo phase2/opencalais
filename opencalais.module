@@ -146,28 +146,6 @@ function opencalais_entity_info() {
   return $return;
 }
 
-/**
- * Implements hook_node_insert().
- */
-function opencalais_node_insert($node) {
-  opencalais_tag($node);
-}
-
-/**
- * Implements hook_node_update().
- */
-function opencalais_node_update($node) {
-  opencalais_tag($node);
-}
-
-/**
- * Implements hook_node_delete().
- */
-function opencalais_node_delete($node) {
-  db_delete('opencalais_term_node')
-            ->condition('nid', $node->nid)
-            ->execute();
-}
 
 /**
  * Implements hook_form_BASE_FORM_ID_alter().
@@ -175,7 +153,7 @@ function opencalais_node_delete($node) {
 function opencalais_form_node_form_alter(&$form, &$form_state, $form_id) {  
   $node = $form['#node'];
   $fields = opencalais_get_opencalais_tag_fields($form, 'node', $node->type);
-
+  dpm($node, 'node before passage');
   foreach ($fields as $opencalais_type => $field_name) {
     // Load suggestions
     $suggestions = opencalais_get_suggestions($node, $opencalais_type);
@@ -188,39 +166,45 @@ function opencalais_form_node_form_alter(&$form, &$form_state, $form_id) {
     $themed_suggestions = theme('opencalais_suggestions', $vars); 
     $form[$field_name]['#suffix'] = $themed_suggestions;
   }
-  //TODO: I think we should hide the suggest tags button if no fields are found
-  $path = drupal_get_path('module', 'opencalais');
-  $form['actions']['suggest_tags'] = array(
-    '#type' => 'submit', 
-    '#value' => t('Suggest Tags'), 
-    '#weight' => 20,
-    '#submit' => array('opencalais_suggest_tags_submit'),     
-    '#ajax' => array(
-      'callback' => 'opencalais_suggest_tags_callback',  
-      'effect' => 'fade',
-    ),
-    '#attached' => array(
-      'js' => array($path . '/theme/opencalais.node.js'),
-      'css' => array($path . '/theme/opencalais.node.css'),
-    )
-  );
   
-  // Should we collect them in vertical tabs?
-  if (variable_get('opencalais_tags_in_verticaltab', FALSE)) {
-    $form['opencalais']  = array(
-      '#type' => 'fieldset', 
-      '#title' => t('OpenCalais Tags'), 
-      '#collapsible' => TRUE, 
-      '#collapsed' => TRUE, 
-      '#group' => 'additional_settings', 
-      '#weight' => -2, 
-    );    
-    foreach ($fields as $field_name) {
-      $form['opencalais'][$field_name] = $form[$field_name];
-      unset($form[$field_name]);
+  if($fields){
+          
+    // Should we collect them in vertical tabs?
+    if (variable_get('opencalais_tags_in_verticaltab', FALSE)) {
+      $form['opencalais']  = array(
+        '#type' => 'fieldset', 
+        '#title' => t('OpenCalais Tags'), 
+        '#collapsible' => TRUE, 
+        '#collapsed' => TRUE, 
+        '#group' => 'additional_settings', 
+        '#weight' => -2, 
+      );    
+      foreach ($fields as $field_name) {
+        $form['opencalais'][$field_name] = $form[$field_name];
+        unset($form[$field_name]);
+      }
+      
+      $path = drupal_get_path('module', 'opencalais');
+      $form['opencalais']['suggest_tags'] = array(
+        '#type' => 'submit', 
+        '#value' => t('Suggest Tags'),
+        '#prefix' => '<div class="messages status opencalais_button_holder">',
+        '#suffix' => '</div>',
+        '#attributes' => array('class' => array('opencalais_submit')),
+        '#weight' => -20,
+        '#submit' => array('opencalais_suggest_tags_submit'),     
+        '#ajax' => array(
+          'callback' => 'opencalais_suggest_tags_callback',  
+          'effect' => 'fade',
+        ),
+        '#attached' => array(
+          'js' => array($path . '/theme/opencalais.node.js'),
+          'css' => array($path . '/theme/opencalais.node.css'),
+        )
+      );
+      
     }
   }
-
 }
 
 
@@ -291,11 +275,15 @@ function opencalais_get_suggestions(&$node, $opencalais_type = NULL) {
     $suggestions = $tag_cache[$node->ocid];    
   }
   else {
+    if(!property_exists($node, 'nid')){
+      return; //short circuit out - the node is brand new and being rendered for the first time
+    }
+    
     // Needed to support caching of unsaved nodes
     if (empty($node->ocid)) {
       $node->ocid = !empty($node->nid) ? $node->nid : uniqid();
     }
-    
+
     $elements = node_view($node);
     //$body = strip_tags(drupal_render($elements));
     $body = drupal_render($elements);
@@ -477,6 +465,7 @@ function opencalais_get_all_entities() {
    $field['field_name'] = strtolower(str_ireplace(' ', '_', $field_name));
   
    $field['type'] = key($taxonomy_field);
+   $field['cardinality'] = FIELD_CARDINALITY_UNLIMITED;
    //limit to the proper taxonomy name
    $field['settings']['allowed_values'][0] = array(
      'vocabulary' => $taxonomy_name,
@@ -582,8 +571,8 @@ function opencalais_get_all_entities() {
    
    //fields will be an empty array if no instances are found
    foreach($fields as $field_name => $field){
-    
-     if ($field['widget']['module'] == 'taxonomy') {
+        
+     if (isset($field['settings']['opencalais']) && $field['settings']['opencalais']) {
        $main_field = field_info_field($field_name);
        $opencalais_type = $main_field['settings']['allowed_values'][0]['vocabulary'];    
        if (in_array($opencalais_type, $entities)) {
@@ -621,7 +610,6 @@ function opencalais_get_all_entities() {
     
     $existing = opencalais_get_fields_for_content_type($content_type);
     
-      
     $form['content_type'] = array(
       '#type' => 'hidden',
       '#value' => str_ireplace('-', '_', $content_type),
@@ -681,7 +669,7 @@ function opencalais_get_all_entities() {
     $usage_text  = 'Simply select the categories that apply to your content by checking their checkbox and then use the slider to set ';
     $usage_text .= 'the relevancy threshold which a term must meet to be applied.'; 
     
-    $notes_text = 'Note that the broader a category (for example "Country" vs. "City") the lower the average relevance of terms will be.';
+    $notes_text = 'Note: When saving with already existing fields, a message will appear that the field(s) have been successfully updated.  Each field is always resaved so this is normal.';
     
     $form['help'] = array(
       '#type' => 'item',
