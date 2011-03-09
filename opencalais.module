@@ -53,47 +53,7 @@ function opencalais_menu() {
     'access arguments' => array('administer opencalais'),
     'type' => MENU_LOCAL_TASK,
   );
-/*
-  $items['admin/settings/calais/queue'] = array(
-    'title' => 'Calais Bulk Processing',
-    'description' => 'Submits all Nodes of a specific type to Calais for processing',
-    'page callback' => 'calais_bulk_process',
-    'access arguments' => array('administer calais'),
-    'weight' => 10,
-    'file' => 'opencalais.admin.inc',
-    'type' => MENU_LOCAL_TASK
-  );
-  $items['admin/settings/calais/queue/clear/%'] = array(
-    'title' => 'Clear Calais Bulk Queue',
-    'description' => 'Clears the bulk queue for a particular content type',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('calais_queue_clear_confirm', 5),
-    'access arguments' => array('administer calais'),
-    'file' => 'opencalais.admin.inc',
-    'type' => MENU_CALLBACK
-  );
 
-  $items['admin/settings/calais/queue/enqueue/%'] = array(
-    'title' => 'Calais Queue Processing',
-    'description' => 'Submits all Content of the specified type to Calais for processing',
-    'page callback' => 'calais_enqueue',
-    'page arguments' => array(5),
-    'access arguments' => array('administer calais'),
-    'file' => 'opencalais.admin.inc',
-    'type' => MENU_CALLBACK
-  );
-*/
-/*
-  $items['node/%/calais/rdf'] = array(
-    'title' => 'Calais',
-    'page callback' => 'calais_get_rdf',
-    'page arguments' => array(1),
-    'access callback' => 'user_access',
-    'access arguments' => array('access calais rdf'),
-    'file' => 'opencalais.pages.inc',
-    'type' => MENU_CALLBACK
-  );
-*/
   return $items;
 }
 
@@ -367,8 +327,19 @@ function opencalais_get_all_entities() {
     $cleaned = preg_replace('/<(link|META)(.*)>/', '', $response->data);
     $doc = simplexml_load_string($cleaned);
     $spans = $doc->xpath("//span[@rtype='entity']");
+    
+   
     foreach ($spans as $span) {
-      $entities[] = (string)$span['label'];       
+      $str = str_ireplace('/em/e/', '/er/Geo/', $span['id']);
+      
+      $properties = $doc->xpath("//span[@type='domain' and @res='$str']");
+      $label = (string)$span['label'];
+      $entities[$label] = array();
+      foreach($properties as $property){
+        if(!stristr($property['propertyLabel'], 'http://')){
+          $entities[$label][] = (string) $property['propertyLabel'];
+        }
+      }
     }
   }
   else {
@@ -416,7 +387,8 @@ function opencalais_get_all_entities() {
       'URL'
     );
   }
-
+  
+    
   // Special Reserved Vocabularies    
   array_push($entities, 'SocialTags', 'CalaisDocumentCategory', 'EventsFacts');
   sort($entities);
