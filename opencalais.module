@@ -330,16 +330,7 @@ function opencalais_get_all_entities() {
     
    
     foreach ($spans as $span) {
-      $str = str_ireplace('/em/e/', '/er/Geo/', $span['id']);
-      
-      $properties = $doc->xpath("//span[@type='domain' and @res='$str']");
-      $label = (string)$span['label'];
-      $entities[$label] = array();
-      foreach($properties as $property){
-        if(!stristr($property['propertyLabel'], 'http://')){
-          $entities[$label][] = (string) $property['propertyLabel'];
-        }
-      }
+      $entities[] = (string)$span['label'];       
     }
   }
   else {
@@ -387,7 +378,6 @@ function opencalais_get_all_entities() {
       'URL'
     );
   }
-  
     
   // Special Reserved Vocabularies    
   array_push($entities, 'SocialTags', 'CalaisDocumentCategory', 'EventsFacts');
@@ -727,4 +717,5 @@ function opencalais_get_all_entities() {
     }
     $array = $new_array;
   }
+  
   
