@@ -11,5 +11,6 @@ files[] = opencalais.install
 files[] = opencalais.module
 files[] = opencalais.admin.inc
 files[] = opencalais.pages.inc
+files[] = tests/opencalais.test
 
 configure = admin/config/opencalais/tagging
