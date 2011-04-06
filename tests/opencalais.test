@@ -58,18 +58,16 @@ class OpenCalaisAddFieldTestCase extends DrupalWebTestCase {
 	function testAddOpenCalaisField() {
 
     $edit = array(
-      "config[entities][City][enabled]" => "1",
-      "config[entities][City][threshold]" => "0.75",
+      'content_type' => 'article',
+      'config[entities][City][existing]' => FALSE,
+      'config[entities][City][enabled]' => TRUE,
+      'config[entities][City][threshold]' => 0.75,
     );
     $this->drupalPost('admin/structure/types/manage/article/opencalais_fields', $edit, t('Save Fields'));
+    $this->assertText('OpenCalais Field for City has been successfully created');
 
-    $fields = opencalais_get_fields_for_content_type('article');
-
-    foreach ($edit as $field => $value) {
-      $this->assertTrue(array_key_exists($field, $fields), "$field exists in the OpenCalais fields");
-      $this->assertEqual($value, $fields[$field], "$field value is $value");      
-    }
-    //debug($fields);
+    $this->drupalGet('admin/structure/types/manage/article/fields');
+    $this->assertFieldByXPath('//table[@id="field-overview"]//tr[@id="opencalais-city-tags"]', NULL, t('OpenCalais City Field was created and appears in the overview page.'));
 	}
 }
 
