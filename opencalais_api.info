@@ -5,7 +5,6 @@ package = "OpenCalais"
 core = 7.x
 files[] = opencalais_api.install
 files[] = opencalais_api.module
-files[] = opencalais_api.test
 files[] = includes/Calais.inc
 files[] = includes/CalaisMetadata.inc
 files[] = includes/CalaisRdfProcessor.inc
@@ -17,6 +16,8 @@ files[] = includes/ARC2/ARC2_Class.inc
 files[] = includes/ARC2/ARC2_Reader.inc
 files[] = includes/ARC2/ARC2_RDFParser.inc
 files[] = includes/ARC2/ARC2_RDFXMLParser.inc
+
+files[] = tests/opencalais_api.test
 
 configure = admin/config/opencalais/api
 
