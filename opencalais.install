@@ -8,7 +8,7 @@
  */
 function opencalais_install() {
   db_query("UPDATE {system} SET weight = 10 WHERE name = 'opencalais'");
-  
+  drupal_set_message('<pre>'.print_r(opencalais_get_all_entities(), true).'</pre>');
   foreach (opencalais_get_all_entities() as $entity) {
     opencalais_create_vocabulary($entity);
   }

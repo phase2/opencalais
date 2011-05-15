@@ -113,7 +113,7 @@ function opencalais_entity_info() {
 function opencalais_form_node_form_alter(&$form, &$form_state, $form_id) {  
   $node = $form['#node'];
   $fields = opencalais_get_opencalais_tag_fields($form, 'node', $node->type);
-  dpm($node, 'node before passage');
+ // dpm($node, 'node before passage');
   foreach ($fields as $opencalais_type => $field_name) {
     // Load suggestions
     $suggestions = opencalais_get_suggestions($node, $opencalais_type);
@@ -256,7 +256,7 @@ function opencalais_get_suggestions(&$node, $opencalais_type = NULL) {
     //$tags = $opencalais->analyzeXML($node->title, $body, $date);
     $tags = $opencalais->analyzeHTML($body);
     
-    dpm($tags, "Tags back from OpenCalais");
+    //dpm($tags, "Tags back from OpenCalais");
 
     $suggestions = array();    
     foreach ($tags as $type => $metadata) {
@@ -291,15 +291,79 @@ function opencalais_check_suggestion($settings, $term){
  * Create a new vocabulary with the OpenCalais key as the machine name.
  */
 function opencalais_create_vocabulary($entity) {
-  if (!taxonomy_vocabulary_machine_name_load($entity)) {
-    $readable = opencalais_api_make_readable($entity);
+  $readable = opencalais_api_make_readable($entity);
+      $machine = opencalais_make_machine_name($entity);
+  if (!taxonomy_vocabulary_machine_name_load($entity)) { 
+
+    
     $vocabulary = (object) array(
       'name' => $readable,
       'description' => t('Tags sourced from OpenCalais about @name.', array('@name' => $readable)),
-      'machine_name' => $entity,
+      'machine_name' => $machine,
       'module' => 'opencalais',
     );
     taxonomy_vocabulary_save($vocabulary);
+  } 
+  /* Add extra fields for vocabularies that have disabiguation information associated with them
+   * We want to do this even for existing fields in case we add more fields in the future ... that way there won't be an issue.
+   * @see opencalais_get_extra_fields
+   */
+  $extra = opencalais_get_extra_fields($entity);
+  if($extra){
+    drupal_set_message(print_r($extra, true));
+    $size = count($extra);
+    for($i = 0; $i < $size; $i++){
+      $e = $extra[$i];
+      drupal_set_message('extra: ' . $e);
+      //we just need to add these as text fields for right now
+      $text_field = text_field_info();
+  
+      // Create all the fields we are adding to our taxonomy term
+      // http://api.drupal.org/api/function/field_create_field/7
+      $field['field_name'] = strtolower(str_ireplace(' ', '_', $e));
+  
+      $field['type'] = 'text';
+      $field['cardinality'] = 1;
+  
+      //handle any fieldexceptions that occur by just setting and error message and returning
+      try{
+      //only try to create the field if it doesn't exist, otherwise just create an instance
+        if(!field_read_field($e, array('include_inactive' => TRUE))){
+          field_create_field($field);
+        }
+      } catch (FieldException $f){
+        drupal_set_message('Error creating MetaData Field: ' . $f->getMessage(), $type = 'error');
+      }
+      $instance = current($text_field);
+  
+      // Create all the instances for our fields.
+      // http://api.drupal.org/api/function/field_create_instance/7
+      $instance['field_name'] = $field['field_name'];
+      $instance['title'] = $e;
+      $instance['label'] = 'OpenCalais Metadata: ' . $e;
+      $instance['description'] = $vocabulary->description;
+  
+      $instance['widget'] = array(
+        'type' => 'text_textfield',
+        'settings' => array(),
+        'module' => 'text'
+      );
+      $instance['entity_type'] = 'taxonomy_term';
+      $instance['bundle'] = $entity;
+      //handle any fieldexceptions that occur by just setting and error message and returning
+      try{
+        if(!field_read_instance('taxonomy_term', $instance['field_name'], $content_type)){
+          field_create_instance($instance);
+          drupal_set_message(t('OpenCalais MetaData Field for '.$readable.' has been successfully created'));
+        } else {
+          //If the field already exists then we should just update it
+          field_update_instance($instance);
+          drupal_set_message(t('OpenCalais MetaData Field for '.$readable.' has been successfully updated'));
+        }
+      } catch (FieldException $f){
+        drupal_set_message('Error creating MetaData Field: ' . $f->getMessage(), $type = 'error');
+      }
+    }
   }
 }
 
@@ -390,21 +454,7 @@ function opencalais_get_all_entities() {
 /*
  *  Functions to add fields to a content_type via a wizard style thingie
  */
-  
- /**
-  *  Implementation of hook_field_info_alter
-  *  Used to add an instance setting to taxonomy term references for the threshold
-  */  
-  function opencalais_field_info_alter(&$info){
-    if (isset($info['taxonomy_term_reference'])){
 
-      if(!isset($info['taxonomy_term_reference']['instance_settings'])) {
-        $info['taxonomy_term_reference']['instance_settings'] = array();
-      }
-      $info['taxonomy_term_reference']['instance_settings']['threshold'] = 0;
-      $info['taxonomy_term_reference']['instance_settings']['opencalais'] = FALSE;
-    }
-  }
   
  /**
   *  Add a field to a content_type - creates a taxonomy field
@@ -718,4 +768,30 @@ function opencalais_get_all_entities() {
     $array = $new_array;
   }
   
+  /**
+   *  A Utility function used to turn any string into a valid machine name
+   */
+  function opencalais_make_machine_name($name){
+    $name = str_replace(' ', '_', $name);
+    $name = preg_replace('/([a-z])([A-Z])/', '$1_$2', $name);
+    $name = strtolower($name);
+    return $name;
+  }
+  
+  /**
+   *  Retrieve a list of extra fields to apply to a vocabulary
+   */
+  function opencalais_get_extra_fields($vocab){
+    $geo = array('City', 'Country', 'ProvinceOrState');
+    $company = array('Company');
+    $product = array('Product');
+    
+    if(in_array($vocab, $geo)){
+      return array('Latitude', 'Longitude', 'ContainedByState', 'ContainedByCounty');
+    } else if(in_array($vocab, $company)){
+      return array('Ticker', 'LegalName');
+    } else if(in_array($vocab, $product)){
+      return array();
+    }
+  }
   

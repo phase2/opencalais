@@ -11,6 +11,13 @@ files[] = includes/CalaisMetadata.inc
 files[] = includes/CalaisRdfProcessor.inc
 files[] = includes/CalaisService.inc
 files[] = includes/SemanticProxyService.inc
+
+files[] = includes/ARC2/ARC2.inc
+files[] = includes/ARC2/ARC2_Class.inc
+files[] = includes/ARC2/ARC2_Reader.inc
+files[] = includes/ARC2/ARC2_RDFParser.inc
+files[] = includes/ARC2/ARC2_RDFXMLParser.inc
+
 configure = admin/config/opencalais/api
 
 dependencies[] = libraries

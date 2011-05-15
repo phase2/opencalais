@@ -281,9 +281,13 @@ class CalaisRdfProcessor {
       'latitude' => $data[self::CALAIS_LAT][0],
       'longitude' => $data[self::CALAIS_LON][0],
       'shortname' => $data['http://s.opencalais.com/1/pred/shortname'][0],
-      'containedbystate' => $data['http://s.opencalais.com/1/pred/containedbystate'][0],
       'containedbycountry' => $data['http://s.opencalais.com/1/pred/containedbycountry'][0],
     );
+    //Only set this if its actually available
+    if(isset($data['http://s.opencalais.com/1/pred/containedbystate'])){
+      $extra['containedbystate'] = $data['http://s.opencalais.com/1/pred/containedbystate'][0];
+    }
+    
     $this->apply_resolved_data($keywords, $guid, $data, 'geo', $extra);
   }
   
@@ -329,8 +333,12 @@ class CalaisRdfProcessor {
   protected function apply_resolved_company(&$keywords, $guid, $data) {
    $extra = array(
      'score' => $data[self::CALAIS_SCORE][0],
-     'ticker' => $data['http://s.opencalais.com/1/pred/ticker'][0],
    );
+   //only set if its actually available
+   if(isset($data['http://s.opencalais.com/1/pred/ticker'])){
+     $extra['ticker'] = $data['http://s.opencalais.com/1/pred/ticker'][0];
+   }
+   
    $this->apply_resolved_data($keywords, $guid, $data, 'company', $extra);
   }
   
