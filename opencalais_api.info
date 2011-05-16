@@ -11,12 +11,6 @@ files[] = includes/CalaisRdfProcessor.inc
 files[] = includes/CalaisService.inc
 files[] = includes/SemanticProxyService.inc
 
-files[] = includes/ARC2/ARC2.inc
-files[] = includes/ARC2/ARC2_Class.inc
-files[] = includes/ARC2/ARC2_Reader.inc
-files[] = includes/ARC2/ARC2_RDFParser.inc
-files[] = includes/ARC2/ARC2_RDFXMLParser.inc
-
 files[] = tests/opencalais_api.test
 
 configure = admin/config/opencalais/api

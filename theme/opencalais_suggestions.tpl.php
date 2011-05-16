@@ -10,12 +10,13 @@ $for = 'edit-' . strtr(drupal_strtolower($field_name . '-' . $language), array('
   <?php print t('Tag Suggestions: '); ?>
 <?php
   if (!empty($suggestions)):
-    foreach ($suggestions as $term => $relevance):
+    foreach ($suggestions as $term => $data):
+      $relevance = $data['relevance'];
       $size = ceil(3 * $relevance);
       $hover = t('Relevance: ') . $score_value[$size];
       $class = "score-{$size}";
       $term_name = check_plain($term);
-      ?>
+?>
     <label class='suggestion <?php print $class; ?>' for='<?php print $for; ?>' title='<?php print $hover; ?>'><?php print $term_name; ?></label>
   <?php endforeach; ?>
 <?php endif; ?>

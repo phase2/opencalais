@@ -162,11 +162,36 @@ function opencalais_form_node_form_alter(&$form, &$form_state, $form_id) {
           'css' => array($path . '/theme/opencalais.node.css'),
         )
       );
-      
+      $form['#submit'][] = 'opencalais_handle_node_submit';
     }
   }
 }
 
+/**
+ *  Handle form submit of nodes with opencalais terms
+ */
+function opencalais_handle_node_submit($form, &$form_state){
+  //find the the extra fields with extra values
+  $extras = $_SESSION['opencalais_extra'][$form['nid']['#value']];
+    
+  foreach($extras as $field=>$value){
+    if(isset($form_state['values'][$field])){
+      $field_values = $form_state['values'][$field]['und'];
+      foreach($field_values as $i=>$v){
+        if(isset($extras[$field][$v['name']])){
+          $eV = $extras[$field][$v['name']]['extra'];
+          foreach($eV as $n=>$extra_val){
+            $form_state['values'][$field]['und'][$i][$n]['value'] = $extra_val;
+          }//end foreach
+          //TODO: Figure out why this extra data isn't being saved
+          $obj = (object)$form_state['values'][$field]['und'][$i];
+         // drupal_set_message('<h2>Field</h2>' . '<pre>' . print_r($obj, true).'</pre>');
+          
+        }
+      }//end foreach
+    }
+  } //end foreach
+}
 
 /**
  * AJAX Callback to get OpenCalais tag suggestions for an Entity.
@@ -200,8 +225,10 @@ function opencalais_suggest_tags_callback($form, &$form_state) {
   
   // Load suggestions  
   $commands = array();
+  $_SESSION['opencalais_extra'] = array();
   foreach ($fields as $opencalais_type => $field_name) {
     $suggestions = opencalais_get_suggestions($node, $opencalais_type);
+    
     $vars = array(
       'type' => $opencalais_type, 
       'field_name' => $field_name, 
@@ -212,8 +239,11 @@ function opencalais_suggest_tags_callback($form, &$form_state) {
     $commands[] = ajax_command_replace("#{$field_name}_suggestions", $themed_suggestions . ' suggested @ ' . date(DATE_RFC822));        
     
     // TODO: If auto-apply, add a command to add/normalize the values in the term reference field
-  }
     
+    //add extra fields to the session for storage since apparently we can't write to form state
+    $_SESSION['opencalais_extra'][$form['nid']['#value']][$field_name] = $suggestions; 
+  }
+  
   return array('#type' => 'ajax', '#commands' => $commands);
 }
 
@@ -255,8 +285,6 @@ function opencalais_get_suggestions(&$node, $opencalais_type = NULL) {
     $opencalais = opencalais_api_get_service();
     //$tags = $opencalais->analyzeXML($node->title, $body, $date);
     $tags = $opencalais->analyzeHTML($body);
-    
-    //dpm($tags, "Tags back from OpenCalais");
 
     $suggestions = array();    
     foreach ($tags as $type => $metadata) {
@@ -265,8 +293,11 @@ function opencalais_get_suggestions(&$node, $opencalais_type = NULL) {
       $settings = field_info_instance('node', 'opencalais_'.strtolower(substr($type, 0, 15)).'_tags', $node->type);
       foreach ($metadata->terms as $guid => $term) {
         //only add it if its relevant
-        if(opencalais_check_suggestion($settings, $term)){  
-          $terms[$term->name] = (float)$term->relevance;
+        if(opencalais_check_suggestion($settings, $term)){
+          $terms[$term->name] = array( 
+            'relevance' => (float)$term->relevance,
+            'extra' => $term->extra
+          );
         }
       }  
       $suggestions[$type] = $terms;
