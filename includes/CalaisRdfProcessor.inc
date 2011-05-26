@@ -278,10 +278,10 @@ class CalaisRdfProcessor {
    */
   protected function apply_resolved_geo_city(&$keywords, $guid, $data) {
     $extra = array(
-      'latitude' => $data[self::CALAIS_LAT][0],
-      'longitude' => $data[self::CALAIS_LON][0],
-      'shortname' => $data['http://s.opencalais.com/1/pred/shortname'][0],
-      'containedbycountry' => $data['http://s.opencalais.com/1/pred/containedbycountry'][0],
+      'latitude' => isset($data[self::CALAIS_LAT]) ? $data[self::CALAIS_LAT][0] : '',
+      'longitude' => isset($data[self::CALAIS_LON]) ? $data[self::CALAIS_LON][0] : '',
+      'shortname' => isset($data['http://s.opencalais.com/1/pred/shortname']) ? $data['http://s.opencalais.com/1/pred/shortname'][0] : '',
+      'containedbycountry' => isset($data['http://s.opencalais.com/1/pred/containedbycountry']) ? $data['http://s.opencalais.com/1/pred/containedbycountry'][0] : ''
     );
     //Only set this if its actually available
     if(isset($data['http://s.opencalais.com/1/pred/containedbystate'])){

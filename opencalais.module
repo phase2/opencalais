@@ -83,36 +83,11 @@ function opencalais_theme($existing, $type, $theme, $path) {
 
 
 /**
- * Implements hook_entity_info().
- */
-function opencalais_entity_info() {
-  $return = array(
-    'opencalais_term' => array(
-      'label' => t('OpenCalais Term'),
-      'controller class' => 'EntityAPIController',
-      'base table' => 'opencalais_term',
-      'fieldable' => TRUE,
-      'entity keys' => array(
-        'id' => 'tid',
-        'label' => 'name',
-        'bundle' => 'type',
-      ),
-      'bundles' => array(),
-      'bundle keys' => array(
-        'bundle' => 'type',
-      ),
-    ),
-  );  
-  return $return;
-}
-
-
-/**
  * Implements hook_form_BASE_FORM_ID_alter().
  */
 function opencalais_form_node_form_alter(&$form, &$form_state, $form_id) {  
   $node = $form['#node'];
-  $fields = opencalais_get_opencalais_tag_fields($form, 'node', $node->type);
+  $fields = opencalais_get_opencalais_tag_fields($form, 'node', $node->type); 
  // dpm($node, 'node before passage');
   foreach ($fields as $opencalais_type => $field_name) {
     // Load suggestions
@@ -172,25 +147,33 @@ function opencalais_form_node_form_alter(&$form, &$form_state, $form_id) {
  */
 function opencalais_handle_node_submit($form, &$form_state){
   //find the the extra fields with extra values
-  $extras = $_SESSION['opencalais_extra'][$form['nid']['#value']];
+    $extras = $_SESSION['opencalais_extra'][$form['nid']['#value']];
     
-  foreach($extras as $field=>$value){
-    if(isset($form_state['values'][$field])){
-      $field_values = $form_state['values'][$field]['und'];
-      foreach($field_values as $i=>$v){
-        if(isset($extras[$field][$v['name']])){
-          $eV = $extras[$field][$v['name']]['extra'];
-          foreach($eV as $n=>$extra_val){
-            $form_state['values'][$field]['und'][$i][$n]['value'] = $extra_val;
-          }//end foreach
-          //TODO: Figure out why this extra data isn't being saved
-          $obj = (object)$form_state['values'][$field]['und'][$i];
-         // drupal_set_message('<h2>Field</h2>' . '<pre>' . print_r($obj, true).'</pre>');
-          
-        }
-      }//end foreach
-    }
-  } //end foreach
+    foreach($extras as $field=>$value){
+      $lang = field_available_languages('taxonomy_term', $field);
+      if(isset($form['language']['#value']) && in_array($form['language']['#value'], $lang)){
+        $lang = $form['language']['#value'];
+      } else {
+        $lang = 'und';
+      }
+      
+      if(isset($form_state['values'][$field])){
+        $field_values = $form_state['values'][$field]['und'];
+        foreach($field_values as $i=>$v){
+          if(isset($extras[$field][$v['name']])){
+            $eV = $extras[$field][$v['name']]['extra'];
+            foreach($eV as $n=>$extra_val){
+               $form_state['values'][$field]['und'][$i][$n][$lang] = array();
+              $form_state['values'][$field]['und'][$i][$n][$lang][] = array('value' => $extra_val);
+            }//end foreach
+            //TODO: Figure out why this extra data isn't being saved
+            $obj = (object)$form_state['values'][$field]['und'][$i];
+           // drupal_set_message('<h2>Field</h2>' . '<pre>' . print_r($obj, true).'</pre>');
+            
+          }
+        }//end foreach
+      }
+    } //end foreach
 }
 
 /**
@@ -201,7 +184,8 @@ function opencalais_get_opencalais_tag_fields($form, $entity, $bundle) {
   $entities = opencalais_get_all_entities();
   $instances = field_info_instances($entity, $bundle);
   foreach ($instances as $field_name => $instance) {
-    if ($instance['widget']['module'] == 'taxonomy') {
+    
+    if ( isset($instance['settings']['opencalais']) &&$instance['settings']['opencalais'] ) {
       $field = field_info_field($field_name);
       $opencalais_type = $field['settings']['allowed_values'][0]['vocabulary'];    
       if (in_array($opencalais_type, $entities)) {
@@ -341,11 +325,11 @@ function opencalais_create_vocabulary($entity) {
    */
   $extra = opencalais_get_extra_fields($entity);
   if($extra){
-    drupal_set_message(print_r($extra, true));
+
     $size = count($extra);
     for($i = 0; $i < $size; $i++){
       $e = $extra[$i];
-      drupal_set_message('extra: ' . $e);
+
       //we just need to add these as text fields for right now
       $text_field = text_field_info();
   
