@@ -1,8 +1,0 @@
-; $Id $
-name = Calais
-description = "Calais Web Service Integration."
-package = "Calais"
-core = 6.x
-dependencies[] = calais_api
-dependencies[] = taxonomy
-
