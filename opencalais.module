@@ -88,6 +88,7 @@ function opencalais_theme($existing, $type, $theme, $path) {
 function opencalais_form_node_form_alter(&$form, &$form_state, $form_id) {  
   $node = $form['#node'];
   $fields = opencalais_get_opencalais_tag_fields($form, 'node', $node->type); 
+  $extra = array();
  // dpm($node, 'node before passage');
   foreach ($fields as $opencalais_type => $field_name) {
     // Load suggestions
@@ -100,7 +101,10 @@ function opencalais_form_node_form_alter(&$form, &$form_state, $form_id) {
     );
     $themed_suggestions = theme('opencalais_suggestions', $vars); 
     $form[$field_name]['#suffix'] = $themed_suggestions;
+    $extra[$field_name] = $suggestions; 
   }
+  $form_state['opencalais_extras'] = $extra;
+  
   
   if($fields){
           
@@ -147,8 +151,8 @@ function opencalais_form_node_form_alter(&$form, &$form_state, $form_id) {
  */
 function opencalais_handle_node_submit($form, &$form_state){
   //find the the extra fields with extra values
-    $extras = $_SESSION['opencalais_extra'][$form['nid']['#value']];
-    
+    $extras = $form_state['opencalais_extras'];
+    drupal_set_message('OC: <pre>'.print_r($extras, true).'</pre>');
     foreach($extras as $field=>$value){
       $lang = field_available_languages('taxonomy_term', $field);
       if(isset($form['language']['#value']) && in_array($form['language']['#value'], $lang)){
@@ -209,7 +213,8 @@ function opencalais_suggest_tags_callback($form, &$form_state) {
   
   // Load suggestions  
   $commands = array();
-  $_SESSION['opencalais_extra'] = array();
+  $extra = array();
+
   foreach ($fields as $opencalais_type => $field_name) {
     $suggestions = opencalais_get_suggestions($node, $opencalais_type);
     
@@ -225,9 +230,17 @@ function opencalais_suggest_tags_callback($form, &$form_state) {
     // TODO: If auto-apply, add a command to add/normalize the values in the term reference field
     
     //add extra fields to the session for storage since apparently we can't write to form state
-    $_SESSION['opencalais_extra'][$form['nid']['#value']][$field_name] = $suggestions; 
+    $extra[$field_name] = $suggestions; 
   }
   
+  $form_state['opencalais_extras'] = $extra;
+  $form_state['rebuild'] = TRUE;
+  
+  /**
+   *  Because the form state isn't resaved in ajax_form_callback anything we put in the form_state gets destroyed
+   *  In order to keep our form_state stuff (the meta data) we need to do this.
+   */
+  drupal_process_form($form['#form_id'], $form, $form_state);
   return array('#type' => 'ajax', '#commands' => $commands);
 }
 
