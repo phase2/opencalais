@@ -20,4 +20,6 @@ $for = 'edit-' . strtr(drupal_strtolower($field_name . '-' . $language), array('
     <label class='suggestion <?php print $class; ?>' for='<?php print $for; ?>' title='<?php print $hover; ?>'><?php print $term_name; ?></label>
   <?php endforeach; ?>
 <?php endif; ?>
+<br/>
+<span class="timestamp">Suggested at <?php print date(DATE_RFC822); ?></span>
 </div>

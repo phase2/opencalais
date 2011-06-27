@@ -34,7 +34,7 @@ Drupal.behaviors.opencalaisNodeEdit = {
   			$(this).addClass('suggestion_selected');
   		}		
   	});     
-  }
+  }  
 };
 
 Drupal.opencalais = Drupal.opencalais || {};
@@ -100,5 +100,5 @@ Drupal.opencalais.cleanKeyword = function(keyword) {
 	}
   return keyword;
 }
-
+  
 })(jQuery);
